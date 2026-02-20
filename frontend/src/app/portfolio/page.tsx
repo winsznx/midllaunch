@@ -6,6 +6,7 @@ import { AddressPurpose } from '@midl/core';
 import { useUserHoldings, useUserActivity } from '@/lib/hooks/useLaunches';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 function tokenGradient(name: string): string {
   let hash = 0;
@@ -82,16 +83,31 @@ export default function PortfolioPage() {
   return (
     <div className="container mx-auto px-4 py-10">
       {/* Header */}
-      <div className="mb-8">
-        <h1
-          className="font-display font-bold mb-1"
-          style={{ fontSize: '2rem', color: 'var(--text-primary)' }}
-        >
-          Portfolio
-        </h1>
-        <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
-          {address}
-        </p>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1
+            className="font-display font-bold mb-1"
+            style={{ fontSize: '2rem', color: 'var(--text-primary)' }}
+          >
+            Portfolio
+          </h1>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+              {address}
+            </p>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(address ?? '');
+                toast.success('Address copied');
+              }}
+              className="text-xs transition-colors hover:opacity-70"
+              style={{ color: 'var(--text-tertiary)' }}
+              title="Copy address"
+            >
+              📋
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Summary stats */}
@@ -233,6 +249,35 @@ export default function PortfolioPage() {
             ))}
           </div>
         ) : purchasesList.length > 0 ? (
+          <>
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={() => {
+                  const rows = [
+                    ['Date', 'Token', 'Symbol', 'BTC Spent', 'Tokens', 'TX Hash'].join(','),
+                    ...purchasesList.map(p => [
+                      new Date(p.timestamp).toISOString(),
+                      `"${p.launch.name}"`,
+                      p.launch.symbol,
+                      formatBTC(p.btcAmount || '0'),
+                      formatTokenAmount(p.tokenAmount),
+                      p.txHash || '',
+                    ].join(',')),
+                  ].join('\n');
+                  const blob = new Blob([rows], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `midllaunch-activity-${address?.slice(0, 8)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--bg-border)' }}
+              >
+                ↓ Export CSV
+              </button>
+            </div>
           <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}>
             <table className="w-full text-xs min-w-[480px]">
               <thead>
@@ -285,6 +330,7 @@ export default function PortfolioPage() {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <div className="rounded-xl p-12 text-center" style={{ background: 'var(--bg-surface)', border: '1px dashed var(--bg-border)' }}>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>No transactions yet</p>

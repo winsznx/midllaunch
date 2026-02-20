@@ -6,7 +6,8 @@ import { useAccounts, useConnect } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
 import { encodeFunctionData } from 'viem';
-import { BONDING_CURVE_ABI, btcToWei } from '@/lib/contracts/config';
+import { BONDING_CURVE_ABI, LAUNCH_FACTORY_ABI, LAUNCH_FACTORY_ADDRESS, btcToWei } from '@/lib/contracts/config';
+import { TxProgress, TxStep } from '@/components/ui/TxProgress';
 
 function detectPlatform(): 'ios' | 'android' | 'desktop' {
   if (typeof navigator === 'undefined') return 'desktop';
@@ -39,23 +40,56 @@ interface BotJob {
   expiresAt: string | null;
 }
 
-interface Intent {
-  verb: string;
+interface BuyIntent {
+  verb: 'buy';
   tokenSymbol?: string;
   amountBtc?: number;
   launchAddress?: string;
-  name?: string;
-  ticker?: string;
   estimatedTokens?: number;
   minTokens?: number;
   currentPriceSats?: number;
 }
 
+interface SellIntent {
+  verb: 'sell';
+  tokenSymbol?: string;
+  curveAddress: string;
+  tokenAmountBaseUnits: string;
+  expectedBtcSats: string;
+  minBtcSats: string;
+}
+
+interface LaunchIntent {
+  verb: 'launch';
+  name?: string;
+  ticker?: string;
+  supplyCap?: string;
+  basePrice?: string;
+  priceIncrement?: string;
+  creatorFeeRate?: string;
+  mode?: number;
+  modeMetadata?: `0x${string}`;
+}
+
+type Intent = BuyIntent | SellIntent | LaunchIntent;
+
 interface LaunchData {
   curveAddress: string;
 }
 
-const STEPS = ['Signed & Broadcast', 'BTC Mempool', 'Midl Execution', 'Finalized'] as const;
+function makeBotSteps(activeStep: number, btcTxId?: string): TxStep[] {
+  const labels: { label: string; detail?: string }[] = [
+    { label: 'Queue EVM intent' },
+    { label: 'Build BTC transaction', detail: btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined },
+    { label: 'Sign with wallet (BIP-322)' },
+    { label: 'Broadcast to Midl' },
+  ];
+  return labels.map((s, i) => ({
+    label: s.label,
+    detail: s.detail,
+    status: i < activeStep ? 'done' : i === activeStep ? 'active' : 'pending',
+  }));
+}
 
 export default function BotSignPage() {
   return (
@@ -84,9 +118,10 @@ function BotSignPageInner() {
   const [launch, setLaunch] = useState<LaunchData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [executing, setExecuting] = useState(false);
-  const [completedStep, setCompletedStep] = useState(-1);
+  const [activeStep, setActiveStep] = useState(0);
+  const [btcTxId, setBtcTxId] = useState<string | undefined>();
   const [execError, setExecError] = useState('');
-  const [done, setDone] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
     if (!jobId) return;
@@ -96,9 +131,10 @@ function BotSignPageInner() {
         if (data.error) { setLoadError(data.error); return; }
         if (data.job) {
           setJob(data.job);
-          // Fetch only curveAddress for the transaction — estimates come from intentJson
+          // For buy commands: fetch curveAddress from the launch — estimates come from intentJson
+          // For sell commands: curveAddress is embedded in the intent, no fetch needed
           const intent = (() => { try { return JSON.parse(data.job.intentJson) as Intent; } catch { return null; } })();
-          if (intent?.launchAddress) {
+          if (data.job.command === 'buy' && intent && 'launchAddress' in intent && intent.launchAddress) {
             fetch(`${API_URL}/api/launches/${intent.launchAddress}`)
               .then(r => r.json())
               .then((l: LaunchData) => setLaunch(l))
@@ -119,10 +155,16 @@ function BotSignPageInner() {
 
   if (job.status === 'EXPIRED') {
     const expiredIntent = (() => { try { return JSON.parse(job.intentJson) as Intent; } catch { return null; } })();
-    const expiredAmountBtc = expiredIntent?.amountBtc ?? (job.amountSats ? (Number(job.amountSats) / 1e8).toFixed(4) : '?');
-    const expiredCommand = job.command === 'buy'
-      ? `@midllaunchbot buy $${expiredIntent?.tokenSymbol ?? job.tokenSymbol} ${expiredAmountBtc} BTC`
-      : `@midllaunchbot launch ${expiredIntent?.name ?? ''} ($${expiredIntent?.ticker ?? job.tokenSymbol})`;
+    let expiredCommand = '';
+    if (job.command === 'buy') {
+      const amountBtc = (expiredIntent as BuyIntent | null)?.amountBtc ?? (job.amountSats ? (Number(job.amountSats) / 1e8).toFixed(4) : '?');
+      expiredCommand = `@midllaunchbot buy $${job.tokenSymbol} ${amountBtc} BTC`;
+    } else if (job.command === 'sell') {
+      expiredCommand = `@midllaunchbot sell $${job.tokenSymbol} <amount>%`;
+    } else {
+      const li = expiredIntent as LaunchIntent | null;
+      expiredCommand = `@midllaunchbot launch ${li?.name ?? ''} ($${li?.ticker ?? job.tokenSymbol})`;
+    }
 
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
@@ -180,71 +222,120 @@ function BotSignPageInner() {
   }
 
   const intent = (() => { try { return JSON.parse(job.intentJson) as Intent; } catch { return null; } })();
-  const amountBtc = intent?.amountBtc ?? (job.amountSats ? Number(job.amountSats) / 1e8 : 0);
-  // Read estimates pre-calculated by the bot — no client-side recalculation needed
-  const estimatedTokens = intent?.estimatedTokens ?? null;
-  const minTokens = intent?.minTokens ?? null;
+  const isSell = job.command === 'sell';
+  const sellIntent = isSell ? (intent as SellIntent | null) : null;
+  const buyIntent = !isSell && job.command === 'buy' ? (intent as BuyIntent | null) : null;
+
+  const amountBtc = buyIntent?.amountBtc ?? (job.amountSats ? Number(job.amountSats) / 1e8 : 0);
+  const estimatedTokens = buyIntent?.estimatedTokens ?? null;
+  const minTokens = buyIntent?.minTokens ?? null;
+  const TOKEN_UNIT = BigInt('1000000000000000000');
+  const sellTokenDisplay = sellIntent?.tokenAmountBaseUnits
+    ? Number(BigInt(sellIntent.tokenAmountBaseUnits) / TOKEN_UNIT).toLocaleString()
+    : null;
+  const sellExpectedBtc = sellIntent?.expectedBtcSats
+    ? (Number(sellIntent.expectedBtcSats) / 1e8).toFixed(6)
+    : null;
+  const sellMinBtc = sellIntent?.minBtcSats
+    ? (Number(sellIntent.minBtcSats) / 1e8).toFixed(6)
+    : null;
 
   const handleExecute = async () => {
     if (!paymentAccount) return;
     setExecuting(true);
     setExecError('');
-    setCompletedStep(-1);
+    setActiveStep(0);
+    setBtcTxId(undefined);
+    setShowProgress(true);
 
     try {
-      // Mark job as EXECUTING
       await fetch(`${API_URL}/api/bot/jobs/${jobId}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ btcAddress: paymentAccount.address }),
       });
 
-      if (!launch?.curveAddress) throw new Error('Launch curve address not found');
+      const ZERO_INTENT_ID = '0x0000000000000000000000000000000000000000000000000000000000000000' as `0x${string}`;
 
-      const minTokensOut = BigInt(0); // no slippage guard for bot-initiated trades
+      let evmTo: `0x${string}`;
+      let evmData: `0x${string}`;
+      let evmValue: bigint;
 
-      const data = encodeFunctionData({
-        abi: BONDING_CURVE_ABI,
-        functionName: 'buy',
-        args: ['0x0000000000000000000000000000000000000000000000000000000000000000', minTokensOut],
-      });
+      if (isSell && sellIntent) {
+        if (!sellIntent.curveAddress) throw new Error('Curve address missing from sell intent');
+        evmTo = sellIntent.curveAddress as `0x${string}`;
+        evmData = encodeFunctionData({
+          abi: BONDING_CURVE_ABI,
+          functionName: 'sell',
+          args: [ZERO_INTENT_ID, BigInt(sellIntent.tokenAmountBaseUnits), BigInt(sellIntent.minBtcSats)],
+        });
+        evmValue = BigInt(0);
+      } else if (job.command === 'launch') {
+        const launchI = intent as LaunchIntent | null;
+        evmTo = LAUNCH_FACTORY_ADDRESS;
+        evmData = encodeFunctionData({
+          abi: LAUNCH_FACTORY_ABI,
+          functionName: 'createLaunch',
+          args: [
+            launchI?.name ?? '',
+            launchI?.ticker ?? '',
+            BigInt(launchI?.supplyCap ?? '1000000000000000000000000'),
+            BigInt(launchI?.basePrice ?? '1000'),
+            BigInt(launchI?.priceIncrement ?? '100'),
+            BigInt(launchI?.creatorFeeRate ?? '0'),
+            launchI?.mode ?? 0,
+            (launchI?.modeMetadata ?? '0x0000000000000000000000000000000000000000000000000000000000000000') as `0x${string}`,
+          ],
+        });
+        evmValue = BigInt(0);
+      } else {
+        if (!launch?.curveAddress) throw new Error('Launch curve address not found');
+        evmTo = launch.curveAddress as `0x${string}`;
+        evmData = encodeFunctionData({
+          abi: BONDING_CURVE_ABI,
+          functionName: 'buy',
+          args: [ZERO_INTENT_ID, BigInt(0)],
+        });
+        evmValue = btcToWei(amountBtc.toString());
+      }
 
       const intention = await addTxIntentionAsync({
         intention: {
           evmTransaction: {
-            to: launch.curveAddress as `0x${string}`,
-            data,
-            value: btcToWei(amountBtc.toString()),
+            to: evmTo,
+            data: evmData,
+            value: evmValue,
           },
         },
         from: paymentAccount.address,
         reset: true,
       });
-      setCompletedStep(0);
+      setActiveStep(1);
 
       const fbtResult = await finalizeBTCTransactionAsync({ from: paymentAccount.address });
-      setCompletedStep(1);
+      setBtcTxId(fbtResult.tx.id);
+      setActiveStep(2);
 
       const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
-      setCompletedStep(2);
+      setActiveStep(3);
 
       await sendBTCTransactionsAsync({
         serializedTransactions: [signedIntention],
         btcTransaction: fbtResult.tx.hex,
       });
-      setCompletedStep(3);
 
-      // Confirm job
       await fetch(`${API_URL}/api/bot/jobs/${jobId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           btcTxHash: fbtResult.tx.id,
-          tokensReceived: estimatedTokens != null ? String(estimatedTokens) : undefined,
+          ...(isSell
+            ? {}
+            : { tokensReceived: estimatedTokens != null ? String(estimatedTokens) : undefined }),
         }),
       });
 
-      setDone(true);
+      setActiveStep(4);
     } catch (err) {
       setExecError(err instanceof Error ? err.message : 'Transaction failed');
       await fetch(`${API_URL}/api/bot/jobs/${jobId}`, {
@@ -257,17 +348,22 @@ function BotSignPageInner() {
     }
   };
 
-  if (done) {
-    return (
-      <StatusCard
-        title="Done"
-        message="Check your X notifications — the bot will post your receipt once the transaction confirms."
-        variant="success"
-      />
-    );
-  }
+  const botTxSteps = makeBotSteps(activeStep, btcTxId);
 
   return (
+    <>
+    <TxProgress
+      isOpen={showProgress}
+      title={`${job.command === 'buy' ? 'Buying' : job.command === 'sell' ? 'Selling' : 'Launching'} $${job.tokenSymbol}`}
+      subtitle="Bitcoin-secured · Non-custodial"
+      steps={botTxSteps}
+      error={execError || undefined}
+      onClose={() => { setShowProgress(false); setExecError(''); }}
+      successAction={btcTxId ? {
+        label: 'View BTC Transaction ↗',
+        href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
+      } : undefined}
+    />
     <main className="min-h-screen flex items-center justify-center px-4 py-8">
       <div
         className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-5"
@@ -289,18 +385,24 @@ function BotSignPageInner() {
           <div className="flex justify-between text-sm">
             <span style={{ color: 'var(--text-tertiary)' }}>Action</span>
             <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-              {job.command === 'buy' ? `Buy $${job.tokenSymbol}` : `Launch $${job.tokenSymbol}`}
+              {job.command === 'buy'
+                ? `Buy $${job.tokenSymbol}`
+                : job.command === 'sell'
+                  ? `Sell $${job.tokenSymbol}`
+                  : `Launch $${job.tokenSymbol}`}
             </span>
           </div>
-          {amountBtc > 0 && (
+
+          {/* Buy-specific rows */}
+          {!isSell && amountBtc > 0 && (
             <div className="flex justify-between text-sm">
-              <span style={{ color: 'var(--text-tertiary)' }}>Amount</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>Spending</span>
               <span className="font-mono" style={{ color: 'var(--text-primary)' }}>
                 {amountBtc} BTC
               </span>
             </div>
           )}
-          {estimatedTokens != null && (
+          {!isSell && estimatedTokens != null && (
             <div className="flex justify-between text-sm">
               <span style={{ color: 'var(--text-tertiary)' }}>Estimated</span>
               <span className="font-mono" style={{ color: 'var(--orange-500)' }}>
@@ -308,11 +410,37 @@ function BotSignPageInner() {
               </span>
             </div>
           )}
-          {minTokens != null && (
+          {!isSell && minTokens != null && (
             <div className="flex justify-between text-sm">
               <span style={{ color: 'var(--text-tertiary)' }}>Min (1% slip)</span>
               <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
                 {minTokens.toLocaleString()} {job.tokenSymbol}
+              </span>
+            </div>
+          )}
+
+          {/* Sell-specific rows */}
+          {isSell && sellTokenDisplay != null && (
+            <div className="flex justify-between text-sm">
+              <span style={{ color: 'var(--text-tertiary)' }}>Selling</span>
+              <span className="font-mono" style={{ color: 'var(--text-primary)' }}>
+                {sellTokenDisplay} {job.tokenSymbol}
+              </span>
+            </div>
+          )}
+          {isSell && sellExpectedBtc != null && (
+            <div className="flex justify-between text-sm">
+              <span style={{ color: 'var(--text-tertiary)' }}>Expected return</span>
+              <span className="font-mono" style={{ color: 'var(--orange-500)' }}>
+                ~{sellExpectedBtc} BTC
+              </span>
+            </div>
+          )}
+          {isSell && sellMinBtc != null && (
+            <div className="flex justify-between text-sm">
+              <span style={{ color: 'var(--text-tertiary)' }}>Min return (1% slip)</span>
+              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
+                {sellMinBtc} BTC
               </span>
             </div>
           )}
@@ -325,41 +453,6 @@ function BotSignPageInner() {
             </div>
           )}
         </div>
-
-        {/* Progress steps */}
-        {executing && (
-          <div className="flex flex-col gap-2">
-            {STEPS.map((step, i) => (
-              <div key={step} className="flex items-center gap-2 text-xs">
-                <span
-                  className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{
-                    background: i <= completedStep ? 'var(--green-500)' : i === completedStep + 1 ? 'var(--orange-500)' : 'var(--bg-elevated)',
-                    border: i > completedStep + 1 ? '1px solid var(--bg-border)' : 'none',
-                  }}
-                >
-                  {i <= completedStep && (
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                      <path d="M1.5 4l2 2 3-3" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  )}
-                </span>
-                <span style={{ color: i <= completedStep ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-                  {step}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {execError && (
-          <p
-            className="text-xs rounded-lg px-3 py-2"
-            style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--red-500)', border: '1px solid rgba(239,68,68,0.2)' }}
-          >
-            {execError}
-          </p>
-        )}
 
         {!paymentAccount ? (
           <div className="flex flex-col gap-2">
@@ -396,6 +489,7 @@ function BotSignPageInner() {
         </p>
       </div>
     </main>
+    </>
   );
 }
 

@@ -7,18 +7,20 @@ import { useLaunch, usePurchases, useComments, useCandles } from '@/lib/hooks/us
 import { CandlestickChart } from '@/components/charts/CandlestickChart';
 import { StatPill } from '@/components/ui/StatPill';
 import { BuyPanel } from '@/components/trading/BuyPanel';
+import { SellPanel } from '@/components/trading/SellPanel';
 import { apiClient } from '@/lib/api/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAccounts } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { wsClient } from '@/lib/websocket/client';
 import type { WebSocketMessage } from '@/types';
 import { ipfsUriToHttp } from '@/lib/ipfs/upload';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { DetailHeaderSkeleton, ActivityFeedSkeleton } from '@/components/ui/Skeletons';
 import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
 
 // ── Bonding curve SVG chart ────────────────────────────────────────────────────
 
@@ -356,7 +358,8 @@ function DetailTabs({
               <table className="w-full text-xs">
                 <thead>
                   <tr style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--bg-border)' }}>
-                    <th className="text-left pb-2 font-medium">Buyer</th>
+                    <th className="text-left pb-2 font-medium">Type</th>
+                    <th className="text-left pb-2 font-medium">Trader</th>
                     <th className="text-right pb-2 font-medium">BTC</th>
                     <th className="text-right pb-2 font-medium">Tokens</th>
                     <th className="text-right pb-2 font-medium">Time</th>
@@ -372,6 +375,7 @@ function DetailTabs({
                       tokenAmount: e.tokenAmount,
                       timestamp: e.timestamp,
                       txHash: undefined as string | undefined,
+                      tradeType: 'BUY' as const,
                       isNew: e.isNew,
                     })),
                     ...purchases.map(p => ({
@@ -381,25 +385,39 @@ function DetailTabs({
                       tokenAmount: p.tokenAmount,
                       timestamp: new Date(p.timestamp).getTime(),
                       txHash: p.txHash,
+                      tradeType: (p.tradeType ?? 'BUY') as 'BUY' | 'SELL',
                       isNew: false,
                     })),
                   ]
                     .filter((item, idx, arr) => arr.findIndex(x => x.id === item.id) === idx)
                     .slice(0, 50)
-                    .map(row => (
+                    .map(row => {
+                      const isSell = row.tradeType === 'SELL';
+                      return (
                       <tr
                         key={row.id}
                         className={row.isNew ? 'animate-slideInUp' : ''}
                         style={{ borderBottom: '1px solid var(--bg-border)' }}
                       >
+                        <td className="py-2.5">
+                          <span
+                            className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold"
+                            style={{
+                              background: isSell ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)',
+                              color: isSell ? 'var(--red-500)' : 'var(--green-500)',
+                            }}
+                          >
+                            {isSell ? '↓ SELL' : '↑ BUY'}
+                          </span>
+                        </td>
                         <td className="py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
                           {row.buyer.slice(0, 8)}…{row.buyer.slice(-4)}
                         </td>
                         <td className="py-2.5 text-right font-mono" style={{ color: 'var(--text-primary)' }}>
                           {formatBTC(row.btcAmount)}
                         </td>
-                        <td className="py-2.5 text-right font-mono" style={{ color: 'var(--green-500)' }}>
-                          +{formatTokenAmount(row.tokenAmount)}
+                        <td className="py-2.5 text-right font-mono" style={{ color: isSell ? 'var(--red-500)' : 'var(--green-500)' }}>
+                          {isSell ? '-' : '+'}{formatTokenAmount(row.tokenAmount)}
                         </td>
                         <td className="py-2.5 text-right" style={{ color: 'var(--text-tertiary)' }}>
                           {timeSince(row.timestamp)}
@@ -420,7 +438,8 @@ function DetailTabs({
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                 </tbody>
               </table>
             )}
@@ -622,7 +641,24 @@ export default function LaunchDetailPage() {
     frame();
   }, [launch?.status]);
 
+  const [tradeTab, setTradeTab] = useState<'buy' | 'sell'>('buy');
   const [defaultBtcAmount, setDefaultBtcAmount] = useState('');
+  const milestoneFiredRef = useRef<Set<number>>(new Set());
+
+  // Milestone toasts at 25 / 50 / 75 %
+  useEffect(() => {
+    if (!launch) return;
+    const pct = launch.currentSupply && launch.supplyCap
+      ? Math.min(Number(BigInt(launch.currentSupply) * BigInt(10000) / BigInt(launch.supplyCap)) / 100, 100)
+      : 0;
+    const MILESTONES = [25, 50, 75] as const;
+    for (const m of MILESTONES) {
+      if (pct >= m && !milestoneFiredRef.current.has(m)) {
+        milestoneFiredRef.current.add(m);
+        toast(`${launch.symbol} is ${m}% sold! 🔥`, { icon: '📊' });
+      }
+    }
+  }, [launch]);
 
   // Pre-fill buy widget if creator has a pending dev buy
   useEffect(() => {
@@ -762,15 +798,17 @@ export default function LaunchDetailPage() {
             const currentPriceSats = parseFloat(launch.currentPrice ?? '0');
             const currentSupplyTokens = Number(BigInt(launch.currentSupply ?? '0') / TOKEN_BASE);
             const marketCapSats = currentPriceSats * currentSupplyTokens;
+            const launchAge = timeSince(new Date(launch.timestamp).getTime());
             const stats = [
               { label: 'Current Price', value: `${formatBTC(launch.currentPrice ?? '0')} BTC`, accent: true },
               { label: 'Market Cap', value: `${formatBTC(marketCapSats.toFixed(0))} BTC`, accent: false },
               { label: 'Supply Sold', value: `${formatTokenAmount(launch.currentSupply ?? '0')} / ${formatTokenAmount(launch.supplyCap)}`, accent: false },
               { label: 'Total Volume', value: `${formatBTC(launch.totalBTCDeposited ?? '0')} BTC`, accent: false },
+              { label: 'Age', value: launchAge, accent: false },
             ];
             return (
               <div
-                className="grid gap-px grid-cols-2 sm:grid-cols-4 rounded-xl overflow-hidden"
+                className="grid gap-px grid-cols-2 sm:grid-cols-5 rounded-xl overflow-hidden"
                 style={{ background: 'var(--bg-border)' }}
               >
                 {stats.map(({ label, value, accent }) => (
@@ -960,19 +998,47 @@ export default function LaunchDetailPage() {
 
         </div>
 
-        {/* Buy widget sidebar */}
-        <div className="sticky top-20 order-1 lg:order-2">
+        {/* Trade sidebar */}
+        <div className="sticky top-20 order-1 lg:order-2 space-y-3">
           {progress >= 100 ? (
             <FullySubscribedCard
               launch={launch}
               lastTxHash={purchases.find(p => p.txHash)?.txHash}
             />
           ) : launch.status === 'ACTIVE' ? (
-            <BuyPanel
-              launch={launch}
-              defaultBtcAmount={defaultBtcAmount || undefined}
-              onSuccess={() => { refetch(); refetchPurchases(); }}
-            />
+            <>
+              {/* Buy / Sell tabs */}
+              <div
+                className="flex gap-1 p-1 rounded-xl"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
+              >
+                {(['buy', 'sell'] as const).map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setTradeTab(tab)}
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-all"
+                    style={{
+                      background: tradeTab === tab ? (tab === 'buy' ? 'var(--orange-500)' : 'var(--red-500)') : 'transparent',
+                      color: tradeTab === tab ? '#fff' : 'var(--text-secondary)',
+                    }}
+                  >
+                    {tab === 'buy' ? '↑ Buy' : '↓ Sell'}
+                  </button>
+                ))}
+              </div>
+              {tradeTab === 'buy' ? (
+                <BuyPanel
+                  launch={launch}
+                  defaultBtcAmount={defaultBtcAmount || undefined}
+                  onSuccess={() => { refetch(); refetchPurchases(); }}
+                />
+              ) : (
+                <SellPanel
+                  launch={launch}
+                  onSuccess={() => { refetch(); refetchPurchases(); }}
+                />
+              )}
+            </>
           ) : (
             <div
               className="rounded-xl p-5"

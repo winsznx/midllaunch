@@ -9,6 +9,8 @@ import { uploadImageToIPFS, uploadMetadataToIPFS } from '@/lib/ipfs/upload';
 import { Spinner } from '@/components/ui/Spinner';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { TxProgress, type TxStep } from '@/components/ui/TxProgress';
+import { useRouter } from 'next/navigation';
 
 type Step = 'identity' | 'params' | 'review';
 
@@ -54,6 +56,7 @@ function collectionGradient(name: string): string {
 }
 
 export default function LaunchNftPage() {
+  const router = useRouter();
   const { accounts } = useAccounts();
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
 
@@ -84,6 +87,8 @@ export default function LaunchNftPage() {
   const [deployStage, setDeployStage] = useState(-1);
   const [deployError, setDeployError] = useState<string | null>(null);
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
+  const [btcTxId, setBtcTxId] = useState<string | undefined>();
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm(prev => ({ ...prev, [key]: value }));
@@ -110,6 +115,8 @@ export default function LaunchNftPage() {
 
     setIsDeploying(true);
     setDeployError(null);
+    setShowProgress(true);
+    setBtcTxId(undefined);
     setDeployStage(0);
 
     try {
@@ -172,6 +179,7 @@ export default function LaunchNftPage() {
       setDeployStage(3);
 
       const fbtResult = await finalizeBTCTransactionAsync({ from: paymentAccount.address });
+      setBtcTxId(fbtResult.tx.id);
       setDeployStage(4);
 
       const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
@@ -211,6 +219,18 @@ export default function LaunchNftPage() {
 
   const stepIndex = STEPS.findIndex(s => s.key === step);
 
+  const nftTxSteps: TxStep[] = DEPLOY_STAGES.slice(0, -1).map((label, i) => ({
+    label,
+    detail: i === 3 && btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined,
+    status: deployStage === 6
+      ? 'done'
+      : i < deployStage
+      ? 'done'
+      : i === deployStage
+      ? (deployError ? 'error' : 'active')
+      : 'pending',
+  }));
+
   if (!paymentAccount) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
@@ -234,6 +254,23 @@ export default function LaunchNftPage() {
   }
 
   return (
+    <>
+    <TxProgress
+      isOpen={showProgress}
+      title={`Deploying ${form.name || 'NFT Collection'}`}
+      subtitle={`${form.symbol ? `$${form.symbol}` : ''} · Midl Staging Network`}
+      steps={nftTxSteps}
+      error={deployError}
+      onClose={() => {
+        setShowProgress(false);
+        setDeployError(null);
+        if (deployStage === 6) router.push('/launches');
+      }}
+      successAction={btcTxId ? {
+        label: 'View Transaction ↗',
+        href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
+      } : undefined}
+    />
     <div className="container mx-auto px-4 py-10">
       {/* Header */}
       <div className="mb-8">
@@ -715,5 +752,6 @@ export default function LaunchNftPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

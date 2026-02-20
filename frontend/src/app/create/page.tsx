@@ -9,7 +9,7 @@ import { LAUNCH_FACTORY_ADDRESS, LAUNCH_FACTORY_ABI, ExecutionMode, btcToSatoshi
 import { uploadImageToIPFS, uploadMetadataToIPFS } from '@/lib/ipfs/upload';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
+import { TxProgress, type TxStep, type TxStepStatus } from '@/components/ui/TxProgress';
 
 interface FormData {
   name: string;
@@ -64,6 +64,13 @@ export default function CreateLaunchPage() {
   const [devBuyAmount, setDevBuyAmount] = useState('0.001');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // TxProgress state
+  const [showProgress, setShowProgress] = useState(false);
+  const [txActiveStep, setTxActiveStep] = useState(0);
+  const [txError, setTxError] = useState<string | null>(null);
+  const [btcTxId, setBtcTxId] = useState<string | undefined>();
+  const [redirectAfterClose, setRedirectAfterClose] = useState<string | null>(null);
+
   const { addTxIntentionAsync } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
@@ -112,15 +119,21 @@ export default function CreateLaunchPage() {
       return;
     }
 
+    setShowProgress(true);
+    setTxError(null);
+    setBtcTxId(undefined);
+    // Step 0 = first active step (image upload if image, else queue intent)
+    setTxActiveStep(imageFile ? 0 : 2);
+
     try {
       let metadataCID: string | undefined;
 
       if (imageFile) {
         setStep('uploading');
-        setUploadProgress('Uploading image to IPFS…');
+        setTxActiveStep(0);
         const imageCID = await uploadImageToIPFS(imageFile);
 
-        setUploadProgress('Uploading metadata to IPFS…');
+        setTxActiveStep(1);
         metadataCID = await uploadMetadataToIPFS({
           name: formData.name,
           symbol: formData.symbol,
@@ -134,6 +147,7 @@ export default function CreateLaunchPage() {
 
       setStep('tx');
       setUploadProgress('');
+      setTxActiveStep(2);
 
       const supplyCap = BigInt(formData.supplyCap) * BigInt('1000000000000000000');
       const basePrice = btcToSatoshis(formData.basePrice);
@@ -161,9 +175,14 @@ export default function CreateLaunchPage() {
         from: paymentAccount.address,
         reset: true,
       });
+      setTxActiveStep(3);
 
       const fbtResult = await finalizeBTCTransactionAsync({ from: paymentAccount.address });
+      setBtcTxId(fbtResult.tx.id);
+      setTxActiveStep(4);
+
       const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
+      setTxActiveStep(5);
 
       // Store metadata CID on backend if we uploaded
       if (metadataCID) {
@@ -187,8 +206,7 @@ export default function CreateLaunchPage() {
         serializedTransactions: [signedIntention],
         btcTransaction: fbtResult.tx.hex,
       });
-
-      toast.success('Token launch submitted! Awaiting confirmation.');
+      setTxActiveStep(6); // all done
 
       if (devBuyEnabled && parseFloat(devBuyAmount) > 0) {
         sessionStorage.setItem('pendingDevBuy', JSON.stringify({
@@ -197,16 +215,15 @@ export default function CreateLaunchPage() {
           intentId: fbtResult.tx.id,
           at: Date.now(),
         }));
-        router.push('/launches');
+        setRedirectAfterClose('/launches');
       } else {
-        router.push('/transactions');
+        setRedirectAfterClose('/transactions');
       }
 
     } catch (err) {
       console.error('Create launch error:', err);
       const msg = err instanceof Error ? err.message : 'Failed to create launch';
-      setError(msg);
-      toast.error(msg);
+      setTxError(msg);
       setStep('form');
       setUploadProgress('');
     }
@@ -215,6 +232,23 @@ export default function CreateLaunchPage() {
   const estimatedInitialPrice = parseFloat(formData.basePrice) || 0;
   const estimatedMaxPrice =
     estimatedInitialPrice + (parseFloat(formData.priceIncrement) || 0) * (parseInt(formData.supplyCap) || 0);
+
+  const launchStepDefs = [
+    { label: 'Upload image to IPFS', skip: !imageFile },
+    { label: 'Pin metadata to IPFS', skip: !imageFile },
+    { label: 'Queue deploy intent' },
+    { label: 'Build BTC transaction', detail: btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined },
+    { label: 'Sign with wallet (BIP-322)' },
+    { label: 'Broadcast to Midl Staging' },
+  ].filter(s => !s.skip);
+
+  const launchSteps: TxStep[] = launchStepDefs.map((s, i) => {
+    let status: TxStepStatus = 'pending';
+    if (i < txActiveStep) status = 'done';
+    else if (i === txActiveStep) status = 'active';
+    if (txError && i === txActiveStep) status = 'error';
+    return { label: s.label, detail: s.detail, status };
+  });
 
   if (!paymentAccount) {
     return (
@@ -241,6 +275,24 @@ export default function CreateLaunchPage() {
   const isSubmitting = step !== 'form';
 
   return (
+    <>
+    <TxProgress
+      isOpen={showProgress}
+      title={`Launching ${formData.name || 'Token'}`}
+      subtitle={`$${formData.symbol || 'TOKEN'} · Midl Staging Network`}
+      steps={launchSteps}
+      error={txError}
+      onClose={() => {
+        setShowProgress(false);
+        setTxError(null);
+        setStep('form');
+        if (redirectAfterClose) router.push(redirectAfterClose);
+      }}
+      successAction={btcTxId ? {
+        label: 'View Transaction ↗',
+        href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
+      } : undefined}
+    />
     <div className="container mx-auto px-4 py-10">
       <div className="mb-8">
         <h1
@@ -656,5 +708,6 @@ export default function CreateLaunchPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
