@@ -1,0 +1,45 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "overrides": {
+    "viem": "npm:@midl/viem"
+  },
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/manrope": "^5.2.8",
+    "@fontsource/syne": "^5.2.7",
+    "@midl/connectors": "^3.0.2",
+    "@midl/core": "^3.0.2",
+    "@midl/executor": "^3.0.2",
+    "@midl/executor-react": "^3.0.2",
+    "@midl/react": "^3.0.2",
+    "@tanstack/react-query": "^5.90.21",
+    "@types/canvas-confetti": "^1.9.0",
+    "canvas-confetti": "^1.9.4",
+    "ethers": "^6.16.0",
+    "lightweight-charts": "^5.1.0",
+    "next": "14.2.35",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.7.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^20.19.33",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
