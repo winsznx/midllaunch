@@ -1,6 +1,8 @@
 import LaunchFactoryABI from './LaunchFactory.abi.json';
 import BondingCurvePrimaryMarketABI from './BondingCurvePrimaryMarket.abi.json';
 import NftFactoryABI from './NftFactory.abi.json';
+import MidlNftABI from './MidlNFT.abi.json';
+import NftMarketplaceABI from './NftMarketplace.abi.json';
 
 // LaunchFactory contract address on Midl staging
 export const LAUNCH_FACTORY_ADDRESS = (
@@ -11,10 +13,17 @@ export const LAUNCH_FACTORY_ADDRESS = (
 export const LAUNCH_FACTORY_ABI = LaunchFactoryABI;
 export const BONDING_CURVE_ABI = BondingCurvePrimaryMarketABI;
 export const NFT_FACTORY_ABI = NftFactoryABI;
+export const MIDL_NFT_ABI = MidlNftABI;
+export const NFT_MARKETPLACE_ABI = NftMarketplaceABI;
 
 // NFT Factory contract address on Midl staging
 export const NFT_FACTORY_ADDRESS = (
   process.env.NEXT_PUBLIC_NFT_FACTORY_ADDRESS ?? ''
+) as `0x${string}`;
+
+// NFT Marketplace contract address on Midl staging
+export const NFT_MARKETPLACE_ADDRESS = (
+  process.env.NEXT_PUBLIC_NFT_MARKETPLACE_ADDRESS ?? ''
 ) as `0x${string}`;
 
 // ExecutionMode enum from contract

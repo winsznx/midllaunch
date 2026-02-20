@@ -1,11 +1,8 @@
-import { createConfig, regtest } from '@midl/core';
-import { xverseConnector, leatherConnector } from '@midl/connectors';
+import { type Config, MaestroSymphonyProvider, regtest } from '@midl/core';
+import { createMidlConfig } from '@midl/satoshi-kit';
 
-export const midlConfig = createConfig({
+export const midlConfig = createMidlConfig({
   networks: [regtest],
-  connectors: [
-    xverseConnector(),
-    leatherConnector(),
-  ],
   persist: true,
-});
+  runesProvider: new MaestroSymphonyProvider({ regtest: 'https://runes.staging.midl.xyz' }),
+}) as Config;

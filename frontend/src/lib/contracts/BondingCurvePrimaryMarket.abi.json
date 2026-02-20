@@ -84,6 +84,49 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "seller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "intentId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "btcAmountSats",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "tokenAmountBaseUnits",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newTotalSupply",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newPrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "TokensSold",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "basePrice_sats_per_token",
     "outputs": [
@@ -132,6 +175,30 @@
       {
         "internalType": "uint256",
         "name": "tokensOutBaseUnits",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenAmountBaseUnits",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "currentSupplyBaseUnits",
+        "type": "uint256"
+      }
+    ],
+    "name": "calculateSaleReturn",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "btcOutSats",
         "type": "uint256"
       }
     ],
@@ -201,6 +268,29 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "intentId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenAmountBaseUnits",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "minBtcOut",
+        "type": "uint256"
+      }
+    ],
+    "name": "sell",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

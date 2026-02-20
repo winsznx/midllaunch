@@ -34,6 +34,7 @@ export interface Launch {
 export interface Purchase {
   id: string;
   launchId: string;
+  tradeType: 'BUY' | 'SELL';
   buyer: string;
   intentId: string;
   btcAmount: string;
@@ -79,7 +80,7 @@ export interface GlobalStats {
 }
 
 export interface WebSocketMessage {
-  type: 'launch_created' | 'tokens_purchased' | 'price_update' | 'comment_posted' | 'nft_minted' | 'launch_finalized' | 'connected' | 'subscribed' | 'unsubscribed' | 'heartbeat' | 'pong';
+  type: 'launch_created' | 'tokens_purchased' | 'tokens_sold' | 'price_update' | 'comment_posted' | 'nft_minted' | 'launch_finalized' | 'connected' | 'subscribed' | 'unsubscribed' | 'heartbeat' | 'pong';
   data?: Record<string, unknown>;
   channel?: string;
   timestamp?: string;

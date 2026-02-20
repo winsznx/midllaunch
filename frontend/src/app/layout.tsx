@@ -2,8 +2,10 @@
 import "@/shims/lockdown-shim";
 
 import "./globals.css";
+import "@midl/satoshi-kit/styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MidlProvider } from "@midl/react";
+import { SatoshiKitProvider } from "@midl/satoshi-kit";
 import { WagmiMidlProvider } from "@midl/executor-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -43,6 +45,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <MidlProvider config={midlConfig}>
+          <SatoshiKitProvider>
           <QueryClientProvider client={queryClient}>
             <WagmiMidlProvider>
               <WebSocketProvider>
@@ -70,6 +73,7 @@ export default function RootLayout({
               </WebSocketProvider>
             </WagmiMidlProvider>
           </QueryClientProvider>
+          </SatoshiKitProvider>
         </MidlProvider>
       </body>
     </html>
