@@ -8,6 +8,7 @@ node_modules/
 .env.test.local
 .env.production.local
 *.env
+.env.*
 
 # Bot specific files
 bot/.env
@@ -23,6 +24,13 @@ backend/prisma/*.db
 backend/prisma/*.db-journal
 *.sqlite
 *.sqlite3
+
+# Hardhat build artifacts (generated, not source-of-truth)
+artifacts/
+cache/
+
+# Deployment helper texts (contain addresses only, safe, but generated)
+deployments/env-update.txt
 
 # Misc
 .DS_Store
