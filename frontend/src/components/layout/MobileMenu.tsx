@@ -4,22 +4,24 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useConnect, useAccounts, useDisconnect } from '@midl/react';
 import { AddressPurpose, addNetwork } from '@midl/core';
+import { useTheme } from '@/lib/hooks/useTheme';
 import { midlConfig } from '@/lib/midl/config';
 import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
-  { href: '/launches',     label: 'Browse'        },
-  { href: '/create',       label: 'Launch Token'  },
-  { href: '/launch-nft',   label: 'Launch NFT'    },
-  { href: '/portfolio',    label: 'Portfolio'     },
-  { href: '/transactions', label: 'Transactions'  },
-  { href: '/bot-demo',     label: 'Bot Demo'      },
-  { href: '/link-x',       label: 'Link to X'     },
+  { href: '/launches', label: 'Browse' },
+  { href: '/create', label: 'Launch Token' },
+  { href: '/launch-nft', label: 'Launch NFT' },
+  { href: '/portfolio', label: 'Portfolio' },
+  { href: '/transactions', label: 'Transactions' },
+  { href: '/bot-demo', label: 'Bot Demo' },
+  { href: '/link-x', label: 'Link to X' },
 ];
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const [theme, toggleTheme] = useTheme();
 
   const { connectors, connect, status } = useConnect({
     purposes: [AddressPurpose.Payment, AddressPurpose.Ordinals],
@@ -79,39 +81,68 @@ export function MobileMenu() {
             onClick={() => setOpen(false)}
           />
 
-          {/* Slide-in panel — solid bg, no backdrop-filter dependency */}
+          {/* Slide-in panel — fully opaque, theme-aware */}
           <div
             className="absolute right-0 top-0 bottom-0 w-72 flex flex-col"
             style={{
-              background: 'var(--bg-surface)',
+              background: theme === 'dark' ? '#161412' : '#f0ebe2',
               borderLeft: '1px solid var(--bg-border)',
             }}
           >
             {/* Header */}
             <div
-              className="flex justify-between items-center p-5"
-              style={{ borderBottom: '1px solid var(--bg-border)' }}
+              className="flex justify-between items-center p-4"
+              style={{
+                borderBottom: '1px solid var(--bg-border)',
+                background: theme === 'dark' ? '#161412' : '#f0ebe2',
+              }}
             >
               <span className="font-display font-bold text-base">
                 <span style={{ color: 'var(--orange-500)' }}>₿</span>{' '}
                 <span style={{ color: 'var(--text-primary)' }}>MidlLaunch</span>
               </span>
-              <button
-                onClick={() => setOpen(false)}
-                className="p-1.5 rounded-md hover:opacity-70 transition-opacity"
-                style={{ color: 'var(--text-secondary)' }}
-                aria-label="Close menu"
-              >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Theme toggle */}
+                <button
+                  onClick={toggleTheme}
+                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)' }}
+                >
+                  {theme === 'dark' ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="4" />
+                      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Close */}
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1.5 rounded-md hover:opacity-70 transition-opacity"
+                  style={{ color: 'var(--text-secondary)' }}
+                  aria-label="Close menu"
+                >
+                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             {/* Wallet section */}
             <div
               className="p-4"
-              style={{ borderBottom: '1px solid var(--bg-border)' }}
+              style={{
+                borderBottom: '1px solid var(--bg-border)',
+                background: theme === 'dark' ? '#161412' : '#f0ebe2',
+              }}
             >
               {paymentAccount ? (
                 <div className="space-y-2">
@@ -140,7 +171,7 @@ export function MobileMenu() {
                         border: '1px solid var(--bg-border)',
                       }}
                     >
-                      📋 Copy
+                      Copy
                     </button>
                     <button
                       onClick={() => { disconnect(); toast.success('Disconnected'); }}
@@ -192,7 +223,10 @@ export function MobileMenu() {
             </div>
 
             {/* Nav links */}
-            <nav className="flex flex-col gap-0.5 p-3 flex-1 overflow-y-auto">
+            <nav
+              className="flex flex-col gap-0.5 p-3 flex-1 overflow-y-auto"
+              style={{ background: theme === 'dark' ? '#161412' : '#f0ebe2' }}
+            >
               {NAV_LINKS.map(({ href, label }) => {
                 const active = pathname === href || (href !== '/' && pathname.startsWith(href));
                 return (
@@ -214,7 +248,11 @@ export function MobileMenu() {
             {/* Footer */}
             <div
               className="p-4 text-xs"
-              style={{ borderTop: '1px solid var(--bg-border)', color: 'var(--text-tertiary)' }}
+              style={{
+                borderTop: '1px solid var(--bg-border)',
+                color: 'var(--text-tertiary)',
+                background: theme === 'dark' ? '#161412' : '#f0ebe2',
+              }}
             >
               Built on Midl Network
             </div>
