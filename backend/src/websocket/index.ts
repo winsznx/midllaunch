@@ -6,11 +6,30 @@ import 'dotenv/config';
 const WS_PORT = parseInt(process.env.WS_PORT || '8080');
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-// Redis subscriber for receiving events from the indexer
-const subscriber = new Redis(REDIS_URL);
+const subscriber = new Redis(REDIS_URL, {
+  maxRetriesPerRequest: null,
+  retryStrategy(times) {
+    const delay = Math.min(times * 500, 5000);
+    console.log(`[Redis] Reconnecting in ${delay}ms (attempt ${times})`);
+    return delay;
+  },
+});
+subscriber.on('error', (err) => {
+  console.error('[Redis] Subscriber error:', err.message);
+});
+subscriber.on('connect', () => {
+  console.log('[Redis] Subscriber connected');
+});
 
-// HTTP server for WebSocket
-const server = createServer();
+const server = createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200);
+    res.end('ok');
+    return;
+  }
+  res.writeHead(404);
+  res.end();
+});
 const wss = new WebSocketServer({ server });
 
 // Track client subscriptions

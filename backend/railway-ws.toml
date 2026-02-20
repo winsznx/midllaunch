@@ -1,0 +1,11 @@
+[build]
+builder = "RAILPACK"
+buildCommand = "npm install && npx prisma generate"
+watchPatterns = ["/backend/**"]
+
+[deploy]
+startCommand = "npm run ws"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
