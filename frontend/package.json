@@ -21,6 +21,7 @@
     "@midl/executor": "^3.0.2",
     "@midl/executor-react": "^3.0.2",
     "@midl/react": "^3.0.2",
+    "@midl/satoshi-kit": "^3.0.3",
     "@solana/kit": "^5.5.1",
     "@tanstack/react-query": "^5.90.21",
     "@types/canvas-confetti": "^1.9.0",
