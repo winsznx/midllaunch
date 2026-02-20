@@ -15,6 +15,7 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/manrope": "^5.2.8",
     "@fontsource/syne": "^5.2.7",
+    "@gemini-wallet/core": "^0.3.2",
     "@midl/connectors": "^3.0.2",
     "@midl/core": "^3.0.2",
     "@midl/executor": "^3.0.2",
