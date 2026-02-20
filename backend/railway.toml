@@ -1,0 +1,39 @@
+# Railway service configuration for midllaunch-backend
+# ----------------------------------------------------
+# This directory hosts THREE Railway services:
+#
+#   1. api      — REST API (this file's default config)
+#   2. ws       — WebSocket server (same root dir, override startCommand in dashboard)
+#   3. indexer  — On-chain event indexer (same root dir, override startCommand in dashboard)
+#
+# For "ws" and "indexer" services in Railway dashboard:
+#   → Service Settings → Source → Root Directory: backend
+#   → Service Settings → Deploy → Start Command override:
+#       ws:      npm run ws
+#       indexer: npm run indexer
+#
+# IMPORTANT — Database:
+#   Railway runs an ephemeral filesystem. SQLite (schema.prisma provider = "sqlite")
+#   does NOT persist across deploys. Before deploying to Railway:
+#     1. Add a Railway PostgreSQL plugin to the project
+#     2. Change schema.prisma: provider = "postgresql"
+#     3. Set DATABASE_URL to the Railway-provided PostgreSQL connection string
+#
+# IMPORTANT — WebSocket PORT:
+#   Railway injects PORT for each service. The ws service reads WS_PORT, not PORT.
+#   In the "ws" Railway service, add environment variable:
+#     WS_PORT = ${{PORT}}
+
+[build]
+builder = "RAILPACK"
+# Generates the Prisma client from the current schema
+buildCommand = "npm install && npx prisma generate"
+
+[deploy]
+# Run DB migrations before the API process starts
+preDeployCommand = "npx prisma migrate deploy"
+startCommand = "npm run api"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
