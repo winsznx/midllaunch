@@ -6,7 +6,6 @@ import "./MidlNFT.sol";
 contract NftFactory {
     address[] public allCollections;
     mapping(address => bool) public isCollection;
-    address public admin;
 
     event CollectionCreated(
         bytes32 indexed intentId,
@@ -17,10 +16,6 @@ contract NftFactory {
         uint256 maxSupply,
         uint256 mintPrice
     );
-
-    constructor() {
-        admin = msg.sender;
-    }
 
     function createCollection(
         bytes32 intentId,

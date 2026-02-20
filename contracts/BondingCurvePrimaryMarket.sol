@@ -6,16 +6,16 @@ import "./LaunchToken.sol";
 
 /**
  * @title BondingCurvePrimaryMarket
- * @notice Linear bonding curve for primary token issuance (buy-side ONLY)
+ * @notice Linear bonding curve for primary token issuance — buy and sell
  * @dev Complies with MidlLaunch PRD v1.3 Section 8 & Appendix A
  *
  * Key invariants (MUST enforce):
- * - Price monotonically increases with supply (Section 8)
+ * - Price monotonically increases with supply (buy raises price, sell lowers it)
  * - Buy reverts if tokens < minTokensOut (slippage protection)
+ * - Sell reverts if btcOut < minBtcOut (slippage protection)
  * - Buy reverts if minting would exceed supply cap
  * - Curve parameters are immutable
- * - Only buy() is supported (NO sell in v1)
- * - totalBTCDepositedSats tracks cumulative credited sats (Section 7B.5)
+ * - totalBTCDepositedSats tracks net credited vBTC (increases on buy, decreases on sell)
  */
 contract BondingCurvePrimaryMarket is ReentrancyGuard {
     // Immutable curve parameters (per PRD Section 8)
@@ -36,6 +36,15 @@ contract BondingCurvePrimaryMarket is ReentrancyGuard {
     // Events (per PRD Section 13)
     event TokensPurchased(
         address indexed buyer,
+        bytes32 indexed intentId,
+        uint256 btcAmountSats,
+        uint256 tokenAmountBaseUnits,
+        uint256 newTotalSupply,
+        uint256 newPrice
+    );
+
+    event TokensSold(
+        address indexed seller,
         bytes32 indexed intentId,
         uint256 btcAmountSats,
         uint256 tokenAmountBaseUnits,
@@ -93,6 +102,12 @@ contract BondingCurvePrimaryMarket is ReentrancyGuard {
 
         // Slippage protection
         require(tokensToMintBaseUnits >= minTokensOut, "BondingCurve: slippage exceeded");
+
+        // Supply cap guard (belt-and-suspenders: LaunchToken.mint also enforces this)
+        require(
+            currentSupplyBaseUnits + tokensToMintBaseUnits <= token.supplyCap(),
+            "BondingCurve: exceeds supply cap"
+        );
 
         // Mint tokens to buyer
         token.mint(msg.sender, tokensToMintBaseUnits);
@@ -158,12 +173,78 @@ contract BondingCurvePrimaryMarket is ReentrancyGuard {
     }
 
     /**
+     * @notice Calculate BTC returned for selling a given token amount
+     * @dev Closed-form integral of linear price curve from (s - deltaT) to s:
+     *      btcOut = deltaT * (2*basePrice + k*(2s - deltaT)) / 2
+     * @param tokenAmountBaseUnits Tokens to sell in base units
+     * @param currentSupplyBaseUnits Current total token supply in base units
+     * @return btcOutSats BTC to receive in satoshis
+     */
+    function calculateSaleReturn(
+        uint256 tokenAmountBaseUnits,
+        uint256 currentSupplyBaseUnits
+    ) public view returns (uint256 btcOutSats) {
+        uint256 s = currentSupplyBaseUnits / TOKEN_UNIT;
+        uint256 deltaT = tokenAmountBaseUnits / TOKEN_UNIT;
+        if (deltaT == 0 || s == 0 || deltaT > s) return 0;
+        // Integral from (s - deltaT) to s of (basePrice + k*σ) dσ
+        btcOutSats = deltaT * (
+            2 * basePrice_sats_per_token +
+            priceIncrement_sats_per_token_per_token * (2 * s - deltaT)
+        ) / 2;
+    }
+
+    /**
+     * @notice Sell tokens back to the bonding curve for vBTC
+     * @dev Burns caller's tokens and sends credited vBTC back.
+     *      Midl network routes vBTC credit to caller's Bitcoin address.
+     * @param intentId Intent identifier for correlation (Section 9.8)
+     * @param tokenAmountBaseUnits Tokens to sell in base units
+     * @param minBtcOut Minimum BTC to receive in satoshis (slippage protection)
+     */
+    function sell(
+        bytes32 intentId,
+        uint256 tokenAmountBaseUnits,
+        uint256 minBtcOut
+    ) external nonReentrant {
+        require(tokenAmountBaseUnits > 0, "BondingCurve: must sell > 0 tokens");
+
+        uint256 currentSupplyBaseUnits = token.totalSupply();
+        require(tokenAmountBaseUnits <= currentSupplyBaseUnits, "BondingCurve: sell exceeds supply");
+        require(token.balanceOf(msg.sender) >= tokenAmountBaseUnits, "BondingCurve: insufficient token balance");
+
+        uint256 btcToReturn = calculateSaleReturn(tokenAmountBaseUnits, currentSupplyBaseUnits);
+        require(btcToReturn > 0, "BondingCurve: sell amount too small");
+        require(btcToReturn >= minBtcOut, "BondingCurve: slippage exceeded");
+        require(btcToReturn <= totalBTCDepositedSats, "BondingCurve: insufficient reserves");
+
+        // Burn seller's tokens (privileged burn via minter role)
+        token.burn(msg.sender, tokenAmountBaseUnits);
+
+        // Update net reserve accounting
+        totalBTCDepositedSats -= btcToReturn;
+
+        // Transfer vBTC to seller — Midl routes to seller's Bitcoin address
+        (bool success, ) = payable(msg.sender).call{value: btcToReturn}("");
+        require(success, "BondingCurve: BTC transfer failed");
+
+        emit TokensSold(
+            msg.sender,
+            intentId,
+            btcToReturn,
+            tokenAmountBaseUnits,
+            token.totalSupply(),
+            getCurrentPrice()
+        );
+    }
+
+    /**
      * @notice Integer square root using Babylonian method (Newton's method)
      * @dev Per Appendix A: Required for closed-form curve calculation
      * @param x Input value
      * @return y Square root of x (rounded down)
      */
-    function sqrt(uint256 x) internal pure returns (uint256 y) {
+    function sqrt(uint256 x) private pure returns (uint256 y) {
         if (x == 0) return 0;
 
         // Initial guess: (x + 1) / 2

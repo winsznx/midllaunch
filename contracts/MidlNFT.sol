@@ -3,8 +3,12 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
-contract MidlNFT is ERC721URIStorage, Ownable {
+contract MidlNFT is ERC721URIStorage, Ownable, ReentrancyGuard {
+    using Strings for uint256;
+
     uint256 public totalSupply;
     uint256 public maxSupply;
     uint256 public mintPrice; // in wei (mapped from sats via Midl)
@@ -32,31 +36,33 @@ contract MidlNFT is ERC721URIStorage, Ownable {
         creator = creator_;
     }
 
-    function mint(bytes32 intentId, uint256 quantity) external payable {
+    function mint(bytes32 intentId, uint256 quantity) external payable nonReentrant {
+        uint256 totalCost = mintPrice * quantity;
         require(totalSupply + quantity <= maxSupply, "Exceeds max supply");
         require(mintedPerWallet[msg.sender] + quantity <= maxPerWallet, "Exceeds max per wallet");
-        require(msg.value >= mintPrice * quantity, "Insufficient payment");
+        require(msg.value >= totalCost, "Insufficient payment");
 
         for (uint256 i = 0; i < quantity; i++) {
             uint256 tokenId = _nextTokenId++;
             _safeMint(msg.sender, tokenId);
-            _setTokenURI(tokenId, string(abi.encodePacked("ipfs://", collectionMetadataCID, "/", _toString(tokenId), ".json")));
+            _setTokenURI(
+                tokenId,
+                string(abi.encodePacked("ipfs://", collectionMetadataCID, "/", tokenId.toString(), ".json"))
+            );
             emit NFTMinted(intentId, msg.sender, tokenId, mintPrice);
         }
 
         totalSupply += quantity;
         mintedPerWallet[msg.sender] += quantity;
 
-        payable(creator).transfer(msg.value);
-    }
+        // Refund overpayment to sender
+        if (msg.value > totalCost) {
+            (bool refundOk, ) = payable(msg.sender).call{value: msg.value - totalCost}("");
+            require(refundOk, "MidlNFT: refund failed");
+        }
 
-    function _toString(uint256 value) internal pure returns (string memory) {
-        if (value == 0) return "0";
-        uint256 temp = value;
-        uint256 digits;
-        while (temp != 0) { digits++; temp /= 10; }
-        bytes memory buffer = new bytes(digits);
-        while (value != 0) { digits--; buffer[digits] = bytes1(uint8(48 + value % 10)); value /= 10; }
-        return string(buffer);
+        // Forward exact cost to creator
+        (bool ok, ) = payable(creator).call{value: totalCost}("");
+        require(ok, "MidlNFT: creator payment failed");
     }
 }

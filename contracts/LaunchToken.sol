@@ -69,6 +69,18 @@ contract LaunchToken is ERC20 {
     }
 
     /**
+     * @notice Burn tokens from an address (called by bonding curve on sell)
+     * @dev ONLY callable by authorized minter (bonding curve)
+     * @param from  Address whose tokens are burned
+     * @param amount Amount in base units
+     */
+    function burn(address from, uint256 amount) external {
+        require(minterInitialized, "LaunchToken: minter not initialized");
+        require(msg.sender == minter, "LaunchToken: only minter can burn");
+        _burn(from, amount);
+    }
+
+    /**
      * @notice Returns token decimals (standard ERC20: 18)
      * @dev Per PRD Section 7B.2: TOKEN_UNIT = 1e18 base units per 1 whole token
      */
