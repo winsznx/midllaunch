@@ -9,7 +9,29 @@ import 'dotenv/config';
 };
 
 const prisma = new PrismaClient();
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+  retryStrategy(times) {
+    const delay = Math.min(times * 500, 5000);
+    console.log(`[Redis] Reconnecting in ${delay}ms (attempt ${times})`);
+    return delay;
+  },
+});
+redis.on('error', (err) => {
+  console.error('[Redis] Connection error:', err.message);
+});
+redis.on('connect', () => {
+  console.log('[Redis] Connected');
+});
+
+async function broadcast(channel: string, payload: Record<string, unknown>) {
+  try {
+    await redis.publish(channel, JSON.stringify(payload));
+  } catch (err) {
+    console.error(`[Redis] Failed to publish to ${channel}:`, err);
+  }
+}
 
 // Contract ABIs — must match deployed contract signatures exactly
 const LAUNCH_FACTORY_ABI = [
@@ -205,15 +227,14 @@ class MidlLaunchIndexer {
       this.knownCurveAddresses.add(curveAddress.toLowerCase());
       console.log(`[DB] Stored launch: ${name} (${symbol})`);
 
-      // Broadcast real-time event via Redis
-      await redis.publish('launch_created', JSON.stringify({
+      await broadcast('launch_created', {
         tokenAddress: tokenAddress.toLowerCase(),
         curveAddress: curveAddress.toLowerCase(),
         creator: creator.toLowerCase(),
         name,
         symbol,
         timestamp: new Date(block.timestamp * 1000).toISOString()
-      }));
+      });
     } catch (error) {
       console.error('[LaunchCreated] Error processing event:', error);
     }
@@ -282,15 +303,14 @@ class MidlLaunchIndexer {
           where: { id: launch.id },
           data: { status: 'FINALIZED' },
         });
-        await redis.publish('launch_finalized', JSON.stringify({
+        await broadcast('launch_finalized', {
           tokenAddress: launch.tokenAddress,
           launchId: launch.id,
-        }));
+        });
         console.log(`[DB] Launch FINALIZED: ${launch.name}`);
       }
 
-      // Broadcast real-time events
-      await redis.publish('tokens_purchased', JSON.stringify({
+      await broadcast('tokens_purchased', {
         launchId: launch.id,
         tokenAddress: launch.tokenAddress,
         symbol: launch.symbol,
@@ -300,14 +320,14 @@ class MidlLaunchIndexer {
         newSupply: newTotalSupply.toString(),
         newPrice: newPrice.toString(),
         timestamp: new Date(block.timestamp * 1000).toISOString()
-      }));
+      });
 
-      await redis.publish('price_update', JSON.stringify({
+      await broadcast('price_update', {
         launchId: launch.id,
         tokenAddress: launch.tokenAddress,
         newPrice: newPrice.toString(),
         newSupply: newTotalSupply.toString()
-      }));
+      });
     } catch (error) {
       console.error('[TokensPurchased] Error processing event:', error);
     }
@@ -359,7 +379,7 @@ class MidlLaunchIndexer {
 
       console.log(`[DB] Stored sell for launch: ${launch.name}`);
 
-      await redis.publish('tokens_sold', JSON.stringify({
+      await broadcast('tokens_sold', {
         launchId: launch.id,
         tokenAddress: launch.tokenAddress,
         symbol: launch.symbol,
@@ -369,14 +389,14 @@ class MidlLaunchIndexer {
         newSupply: newTotalSupply.toString(),
         newPrice: newPrice.toString(),
         timestamp: new Date(block.timestamp * 1000).toISOString(),
-      }));
+      });
 
-      await redis.publish('price_update', JSON.stringify({
+      await broadcast('price_update', {
         launchId: launch.id,
         tokenAddress: launch.tokenAddress,
         newPrice: newPrice.toString(),
         newSupply: newTotalSupply.toString(),
-      }));
+      });
     } catch (error) {
       console.error('[TokensSold] Error processing event:', error);
     }
