@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useConnect, useAccounts, useDisconnect } from '@midl/react';
 import { AddressPurpose, addNetwork } from '@midl/core';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { midlConfig } from '@/lib/midl/config';
 import { MobileMenu } from './MobileMenu';
@@ -35,6 +35,21 @@ export function Header() {
   const { disconnect } = useDisconnect();
   const [showConnectors, setShowConnectors] = useState(false);
   const [showWalletMenu, setShowWalletMenu] = useState(false);
+  const connectorsRef = useRef<HTMLDivElement>(null);
+  const walletMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (connectorsRef.current && !connectorsRef.current.contains(e.target as Node)) {
+        setShowConnectors(false);
+      }
+      if (walletMenuRef.current && !walletMenuRef.current.contains(e.target as Node)) {
+        setShowWalletMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const handleConnect = async (connectorId: string) => {
     setShowConnectors(false);
@@ -164,7 +179,7 @@ export function Header() {
                 </button>
               ) : (
                 /* Multiple connectors — dropdown */
-                <>
+                <div ref={connectorsRef}>
                   <button
                     onClick={() => setShowConnectors(v => !v)}
                     disabled={isConnecting}
@@ -186,29 +201,36 @@ export function Header() {
 
                   {showConnectors && (
                     <div
-                      className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden shadow-lg z-10 min-w-full"
+                      className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden shadow-lg z-10 min-w-[180px]"
                       style={{
                         background: 'var(--bg-elevated)',
                         border: '1px solid var(--bg-border)',
                       }}
                     >
+                      <div className="px-4 py-2 border-b text-xs font-medium" style={{ borderColor: 'var(--bg-border)', color: 'var(--text-tertiary)' }}>
+                        Select wallet
+                      </div>
                       {connectors.map(c => (
                         <button
                           key={c.id}
                           onClick={() => handleConnect(c.id)}
-                          className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5"
+                          className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2.5"
                           style={{ color: 'var(--text-primary)' }}
                         >
+                          {c.metadata.icon && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={c.metadata.icon} alt="" width={18} height={18} className="rounded-sm flex-shrink-0" />
+                          )}
                           {c.metadata.name}
                         </button>
                       ))}
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 relative">
+            <div ref={walletMenuRef} className="flex items-center gap-2 relative">
               {/* Address chip — click to open wallet menu */}
               <button
                 onClick={() => setShowWalletMenu(v => !v)}
@@ -235,6 +257,22 @@ export function Header() {
                   className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden shadow-lg z-10 min-w-max"
                   style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
                 >
+                  <div className="px-4 py-2.5 border-b" style={{ borderColor: 'var(--bg-border)' }}>
+                    <div className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+                      {paymentAccount.address.slice(0, 14)}…{paymentAccount.address.slice(-8)}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(paymentAccount.address);
+                      toast.success('Address copied');
+                      setShowWalletMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    <span>📋</span> Copy Address
+                  </button>
                   <Link
                     href="/link-x"
                     onClick={() => setShowWalletMenu(false)}

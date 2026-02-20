@@ -2,6 +2,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useConnect, useAccounts, useDisconnect } from '@midl/react';
+import { AddressPurpose, addNetwork } from '@midl/core';
+import { midlConfig } from '@/lib/midl/config';
+import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
   { href: '/launches',     label: 'Browse'        },
@@ -17,14 +21,41 @@ export function MobileMenu() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
+  const { connectors, connect, status } = useConnect({
+    purposes: [AddressPurpose.Payment, AddressPurpose.Ordinals],
+  });
+  const { accounts } = useAccounts();
+  const { disconnect } = useDisconnect();
+  const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
+  const isConnecting = status === 'pending';
+
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  // Close on route change
   useEffect(() => { setOpen(false); }, [pathname]);
+
+  const handleConnect = async (connectorId: string) => {
+    try {
+      await connect({ id: connectorId });
+      const connector = connectors.find(c => c.id === connectorId);
+      if (connector?.metadata.name === 'Xverse') {
+        try {
+          await addNetwork(midlConfig, connectorId, {
+            name: 'MIDL Regtest',
+            network: 'regtest',
+            rpcUrl: 'https://rpc.staging.midl.xyz',
+            indexerUrl: 'https://api-regtest-midl.xverse.app/',
+          });
+        } catch { /* non-fatal */ }
+      }
+      toast.success('Wallet connected');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to connect');
+    }
+  };
 
   return (
     <>
@@ -41,32 +72,33 @@ export function MobileMenu() {
 
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
-          {/* Backdrop */}
+          {/* Solid backdrop */}
           <div
             className="absolute inset-0"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+            style={{ background: 'rgba(0,0,0,0.75)' }}
             onClick={() => setOpen(false)}
           />
 
-          {/* Slide-in panel */}
+          {/* Slide-in panel — solid bg, no backdrop-filter dependency */}
           <div
-            className="absolute right-0 top-0 bottom-0 w-72 flex flex-col p-6 gap-6"
+            className="absolute right-0 top-0 bottom-0 w-72 flex flex-col"
             style={{
-              background: 'var(--bg-glass)',
-              backdropFilter: 'var(--glass-blur)',
-              WebkitBackdropFilter: 'var(--glass-blur)',
-              borderLeft: 'var(--glass-border)',
+              background: 'var(--bg-surface)',
+              borderLeft: '1px solid var(--bg-border)',
             }}
           >
-            {/* Panel header */}
-            <div className="flex justify-between items-center">
-              <span className="font-display font-bold text-lg">
+            {/* Header */}
+            <div
+              className="flex justify-between items-center p-5"
+              style={{ borderBottom: '1px solid var(--bg-border)' }}
+            >
+              <span className="font-display font-bold text-base">
                 <span style={{ color: 'var(--orange-500)' }}>₿</span>{' '}
                 <span style={{ color: 'var(--text-primary)' }}>MidlLaunch</span>
               </span>
               <button
                 onClick={() => setOpen(false)}
-                className="p-1 rounded-md hover:opacity-70 transition-opacity"
+                className="p-1.5 rounded-md hover:opacity-70 transition-opacity"
                 style={{ color: 'var(--text-secondary)' }}
                 aria-label="Close menu"
               >
@@ -76,8 +108,91 @@ export function MobileMenu() {
               </button>
             </div>
 
+            {/* Wallet section */}
+            <div
+              className="p-4"
+              style={{ borderBottom: '1px solid var(--bg-border)' }}
+            >
+              {paymentAccount ? (
+                <div className="space-y-2">
+                  <div
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                    style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: 'var(--green-500)' }}
+                    />
+                    <span className="text-xs font-mono flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>
+                      {paymentAccount.address.slice(0, 12)}…{paymentAccount.address.slice(-6)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(paymentAccount.address);
+                        toast.success('Copied');
+                      }}
+                      className="py-2 rounded-lg text-xs font-medium transition-all hover:opacity-80"
+                      style={{
+                        background: 'var(--bg-elevated)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--bg-border)',
+                      }}
+                    >
+                      📋 Copy
+                    </button>
+                    <button
+                      onClick={() => { disconnect(); toast.success('Disconnected'); }}
+                      className="py-2 rounded-lg text-xs font-medium transition-all hover:opacity-80"
+                      style={{
+                        background: 'rgba(239,68,68,0.08)',
+                        color: 'var(--red-500)',
+                        border: '1px solid rgba(239,68,68,0.2)',
+                      }}
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              ) : connectors.length === 1 ? (
+                <button
+                  onClick={() => handleConnect(connectors[0].id)}
+                  disabled={isConnecting}
+                  className="btn btn-primary w-full text-sm"
+                >
+                  {isConnecting ? 'Connecting…' : `Connect ${connectors[0].metadata.name}`}
+                </button>
+              ) : (
+                <div className="space-y-1.5">
+                  <p className="text-xs mb-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                    Connect wallet
+                  </p>
+                  {connectors.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleConnect(c.id)}
+                      disabled={isConnecting}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+                      style={{
+                        background: 'var(--bg-elevated)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--bg-border)',
+                      }}
+                    >
+                      {c.metadata.icon && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.metadata.icon} alt="" width={20} height={20} className="rounded-sm flex-shrink-0" />
+                      )}
+                      {c.metadata.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Nav links */}
-            <nav className="flex flex-col gap-1">
+            <nav className="flex flex-col gap-0.5 p-3 flex-1 overflow-y-auto">
               {NAV_LINKS.map(({ href, label }) => {
                 const active = pathname === href || (href !== '/' && pathname.startsWith(href));
                 return (
@@ -87,7 +202,7 @@ export function MobileMenu() {
                     className="px-4 py-3 rounded-xl text-sm font-medium transition-all"
                     style={{
                       color: active ? 'var(--orange-500)' : 'var(--text-secondary)',
-                      background: active ? 'var(--orange-50)' : 'transparent',
+                      background: active ? 'rgba(249,115,22,0.08)' : 'transparent',
                     }}
                   >
                     {label}
@@ -96,8 +211,11 @@ export function MobileMenu() {
               })}
             </nav>
 
-            {/* Footer hint */}
-            <div className="mt-auto text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            {/* Footer */}
+            <div
+              className="p-4 text-xs"
+              style={{ borderTop: '1px solid var(--bg-border)', color: 'var(--text-tertiary)' }}
+            >
               Built on Midl Network
             </div>
           </div>

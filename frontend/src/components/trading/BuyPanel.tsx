@@ -3,11 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useAccounts } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
-import { encodeFunctionData, createPublicClient, http } from 'viem';
+import { usePublicClient } from 'wagmi';
+import { encodeFunctionData } from 'viem';
 import { BONDING_CURVE_ABI, btcToWei, btcToSatoshis } from '@/lib/contracts/config';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import type { Launch } from '@/types';
-import toast from 'react-hot-toast';
+import { TxProgress, type TxStep } from '@/components/ui/TxProgress';
 
 interface BuyPanelProps {
   launch: Launch;
@@ -17,16 +18,24 @@ interface BuyPanelProps {
 
 const QUICK_AMOUNTS = ['0.001', '0.005', '0.01'];
 
-const STEPS = [
-  'Signed & Broadcast',
-  'BTC Mempool',
-  'Midl Execution',
-  'Finalized',
-] as const;
+function makeBuySteps(completedStep: number, btcTxId?: string): TxStep[] {
+  const labels = [
+    { label: 'Queue EVM intent', detail: undefined as string | undefined },
+    { label: 'Build BTC transaction', detail: btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined },
+    { label: 'Sign with wallet (BIP-322)', detail: undefined as string | undefined },
+    { label: 'Broadcast to Midl', detail: undefined as string | undefined },
+  ];
+  return labels.map((s, i) => ({
+    label: s.label,
+    detail: s.detail,
+    status: i < completedStep ? 'done' : i === completedStep ? 'active' : 'pending',
+  }));
+}
 
 export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps) {
   const { accounts } = useAccounts();
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
+  const publicClient = usePublicClient();
 
   const { addTxIntentionAsync } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
@@ -39,32 +48,46 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
   const [isBuying, setIsBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [estimatedTokens, setEstimatedTokens] = useState<bigint>(BigInt(0));
-  const [completedStep, setCompletedStep] = useState(-1);
-  const [txHashes, setTxHashes] = useState<{ btc?: string; evm?: string }>({});
+  const [priceImpact, setPriceImpact] = useState<number | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const [btcTxId, setBtcTxId] = useState<string | undefined>();
+  const [showProgress, setShowProgress] = useState(false);
   const estimateTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     clearTimeout(estimateTimer.current);
-    if (!btcAmount || !launch || parseFloat(btcAmount) <= 0) {
+    if (!btcAmount || !launch || parseFloat(btcAmount) <= 0 || !publicClient) {
       setEstimatedTokens(BigInt(0));
+      setPriceImpact(null);
       return;
     }
     estimateTimer.current = setTimeout(async () => {
       try {
-        const client = createPublicClient({ transport: http(process.env.NEXT_PUBLIC_MIDL_RPC_URL) });
-        const result = await client.readContract({
+        const sats = btcToSatoshis(btcAmount);
+        const result = await publicClient.readContract({
           address: launch.curveAddress as `0x${string}`,
           abi: BONDING_CURVE_ABI,
           functionName: 'calculatePurchaseReturn',
-          args: [btcToSatoshis(btcAmount), BigInt(launch.currentSupply || '0')],
+          args: [sats, BigInt(launch.currentSupply || '0')],
         }) as bigint;
         setEstimatedTokens(result);
+
+        // Price impact: effective sat/token vs current sat/token
+        if (result > BigInt(0)) {
+          const effectiveSatsPerToken = Number(sats) / (Number(result) / 1e18);
+          const currentSatsPerToken = parseFloat(launch.currentPrice ?? '0');
+          if (currentSatsPerToken > 0) {
+            const impact = ((effectiveSatsPerToken - currentSatsPerToken) / currentSatsPerToken) * 100;
+            setPriceImpact(impact);
+          }
+        }
       } catch {
         setEstimatedTokens(BigInt(0));
+        setPriceImpact(null);
       }
     }, 400);
     return () => clearTimeout(estimateTimer.current);
-  }, [btcAmount, launch]);
+  }, [btcAmount, launch, publicClient]);
 
   const handleBuy = async () => {
     if (!paymentAccount) { setBuyError('Connect your wallet first'); return; }
@@ -72,8 +95,9 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
 
     setIsBuying(true);
     setBuyError(null);
-    setCompletedStep(-1);
-    setTxHashes({});
+    setActiveStep(0);
+    setBtcTxId(undefined);
+    setShowProgress(true);
 
     try {
       const slippageBP = BigInt(Math.round((1 - parseFloat(slippage) / 100) * 10_000));
@@ -97,28 +121,26 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
         reset: true,
       });
 
-      setCompletedStep(0);
+      setActiveStep(1);
 
       const fbtResult = await finalizeBTCTransactionAsync({ from: paymentAccount.address });
-      setTxHashes(prev => ({ ...prev, btc: fbtResult.tx.id }));
-      setCompletedStep(1);
+      setBtcTxId(fbtResult.tx.id);
+      setActiveStep(2);
 
       const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
-      setCompletedStep(2);
+      setActiveStep(3);
 
       await sendBTCTransactionsAsync({
         serializedTransactions: [signedIntention],
         btcTransaction: fbtResult.tx.hex,
       });
-      setCompletedStep(3);
+      setActiveStep(4); // all 4 done
 
-      toast.success(`Bought ${launch.symbol} successfully!`);
       onSuccess?.(fbtResult.tx.id);
       setBtcAmount('');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Transaction failed';
       setBuyError(msg);
-      toast.error(msg);
     } finally {
       setIsBuying(false);
     }
@@ -132,7 +154,22 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
     ? `${window.location.origin}/launch/${launch.tokenAddress}${paymentAccount ? `?ref=${paymentAccount.address}` : ''}`
     : '';
 
+  const txSteps: TxStep[] = makeBuySteps(activeStep, btcTxId);
+
   return (
+    <>
+    <TxProgress
+      isOpen={showProgress}
+      title={`Buying ${launch.symbol}`}
+      subtitle="Bitcoin-secured · Non-custodial"
+      steps={txSteps}
+      error={buyError}
+      onClose={() => { setShowProgress(false); setBuyError(null); }}
+      successAction={btcTxId ? {
+        label: 'View BTC Transaction ↗',
+        href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
+      } : undefined}
+    />
     <div className="space-y-4">
       <div
         className="rounded-xl p-5 space-y-4"
@@ -167,7 +204,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
             placeholder="0.000"
             min="0"
             step="0.001"
-            className="input-field pr-14 font-mono"
+            className="input pr-14 font-mono"
           />
           <span
             className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono"
@@ -190,6 +227,31 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
               <span>Min received</span>
               <span className="font-mono">~{minReceived.toFixed(2)} {launch.symbol}</span>
             </div>
+            {priceImpact !== null && (
+              <div className="flex justify-between">
+                <span>Price impact</span>
+                <span
+                  className="font-mono"
+                  style={{
+                    color: priceImpact > 5
+                      ? 'var(--red-500)'
+                      : priceImpact > 2
+                      ? '#eab308'
+                      : 'var(--green-500)',
+                  }}
+                >
+                  {priceImpact > 0 ? '+' : ''}{priceImpact.toFixed(2)}%
+                </span>
+              </div>
+            )}
+            {launch.creatorFeeRate && (
+              <div className="flex justify-between" style={{ color: 'var(--text-tertiary)' }}>
+                <span>Creator fee</span>
+                <span className="font-mono">
+                  {(Number(launch.creatorFeeRate) / 100).toFixed(2)}%
+                </span>
+              </div>
+            )}
           </div>
         )}
 
@@ -239,38 +301,6 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
           )}
         </button>
 
-        {buyError && (
-          <p className="text-xs text-center" style={{ color: 'var(--red-500)' }}>{buyError}</p>
-        )}
-
-        {/* Lifecycle steps */}
-        {completedStep >= 0 && (
-          <div className="space-y-1.5">
-            {STEPS.map((step, i) => (
-              <div key={step} className="flex items-center gap-2 text-xs">
-                <span style={{
-                  color: i <= completedStep ? 'var(--green-500)' : 'var(--text-tertiary)',
-                }}>
-                  {i <= completedStep ? '✓' : i === completedStep + 1 ? '⧖' : '○'}
-                </span>
-                <span style={{ color: i <= completedStep ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-                  {step}
-                </span>
-                {i === 1 && txHashes.btc && (
-                  <a
-                    href={`https://mempool.staging.midl.xyz/tx/${txHashes.btc}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-auto text-xs hover:underline"
-                    style={{ color: 'var(--orange-500)' }}
-                  >
-                    View ↗
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Share section */}
@@ -342,5 +372,6 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
         ) : null}
       </div>
     </div>
+    </>
   );
 }
