@@ -51,6 +51,18 @@ export const T = {
   help: () =>
     `MidlLaunch bot — commands:\n${COMMAND_DOCS.slice(0, 4).join('\n')}\n\nMore: ${APP()}`,
 
+  // Sent immediately on valid sell command
+  sellSign: (symbol: string, tokenAmount: string, expectedBtc: number, minBtcSats: string, jobId: string) =>
+    `Sell ${tokenAmount} $${symbol} → ~${expectedBtc.toFixed(6)} BTC\nMin guaranteed: ${(Number(minBtcSats) / 1e8).toFixed(6)} BTC (1% slippage)\n\nSign here (10min): ${APP()}/bot/sign/${jobId}?ref=x`,
+
+  // Sent when sell tx confirms on-chain
+  sellDone: (symbol: string, tokenAmount: string, btcReceived: number, evmTx: string) =>
+    `Sold ${tokenAmount} $${symbol} → ${btcReceived.toFixed(6)} BTC returned\n\nProof: blockscout.staging.midl.xyz/tx/${evmTx.slice(0, 16)}...`,
+
+  // No holdings for this token
+  noHolding: (symbol: string) =>
+    `You don't hold any $${symbol}.\n\nBuy some first: ${APP()}/launches`,
+
   // Bad command syntax
   badSyntax: () =>
     `Not recognized. Try:\n@midllaunchbot buy $TOKEN 0.001 BTC\n@midllaunchbot help`,

@@ -167,14 +167,109 @@ async function processCommand(
       return;
     }
 
+    if (cmd.verb === 'sell') {
+      // Step 1: Look up user holdings for this token
+      const { holdings } = await fetchJSON<{
+        holdings: Array<{
+          tokenSymbol: string;
+          tokenAddress: string;
+          balance: string;
+          currentPriceSats: number;
+        }>;
+      }>(`${API()}/api/user/${walletData.btcAddress}/holdings`);
+
+      const holding = holdings?.find(h => h.tokenSymbol === cmd.tokenSymbol);
+      if (!holding || BigInt(holding.balance) === 0n) {
+        await reply(rwClient, tweetId, T.noHolding(cmd.tokenSymbol));
+        return;
+      }
+
+      // Step 2: Calculate tokenAmountBaseUnits from the requested percentage
+      const TOKEN_UNIT = 1_000_000_000_000_000_000n; // 1e18
+      const balance = BigInt(holding.balance);
+      // Use exact integer arithmetic: balance * pct / 100, clamped to balance for "all" (100%)
+      const pct = BigInt(Math.round(cmd.percentage));
+      const tokenAmountBaseUnits = balance * pct / 100n;
+
+      if (tokenAmountBaseUnits === 0n) {
+        await reply(rwClient, tweetId, T.noHolding(cmd.tokenSymbol));
+        return;
+      }
+
+      // Step 3: Fetch launch detail for curveAddress + bonding curve params
+      const launchDetail = await fetchJSON<{
+        curveAddress: string;
+        basePrice: string;
+        priceIncrement: string;
+        currentSupply: string;
+      }>(`${API()}/api/launches/${holding.tokenAddress}`);
+
+      // Step 4: Calculate expected BTC return using same closed-form as the contract:
+      //   btcOut = deltaT * (2*basePrice + k*(2*s - deltaT)) / 2
+      //   where s = currentSupply / TOKEN_UNIT, deltaT = tokenAmountBaseUnits / TOKEN_UNIT
+      const s = BigInt(launchDetail.currentSupply) / TOKEN_UNIT;
+      const deltaT = tokenAmountBaseUnits / TOKEN_UNIT;
+      let expectedBtcSats = 0n;
+      if (deltaT > 0n && s > 0n && deltaT <= s) {
+        const basePrice = BigInt(launchDetail.basePrice);
+        const priceIncrement = BigInt(launchDetail.priceIncrement);
+        expectedBtcSats = deltaT * (2n * basePrice + priceIncrement * (2n * s - deltaT)) / 2n;
+      }
+      const minBtcSats = expectedBtcSats * 99n / 100n; // 1% slippage
+
+      // Step 5: Create job
+      const tokenDisplay = Number(tokenAmountBaseUnits / TOKEN_UNIT).toLocaleString();
+      const expectedBtcDisplay = Number(expectedBtcSats) / 1e8;
+
+      const { job } = await fetchJSON<{ job: { id: string } }>(`${API()}/api/bot/jobs`, {
+        method: 'POST',
+        body: JSON.stringify({
+          tweetId,
+          xHandle,
+          command: 'sell',
+          intentJson: {
+            verb: 'sell',
+            tokenSymbol: cmd.tokenSymbol,
+            curveAddress: launchDetail.curveAddress,
+            tokenAmountBaseUnits: tokenAmountBaseUnits.toString(),
+            expectedBtcSats: expectedBtcSats.toString(),
+            minBtcSats: minBtcSats.toString(),
+          },
+          launchAddress: holding.tokenAddress,
+          tokenSymbol: cmd.tokenSymbol,
+          amountSats: expectedBtcSats.toString(),
+        }),
+      });
+
+      await reply(rwClient, tweetId, T.sellSign(cmd.tokenSymbol, tokenDisplay, expectedBtcDisplay, minBtcSats.toString(), job.id));
+
+      await fetch(`${API()}/api/bot/jobs/${job.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'AWAITING_SIGNATURE', walletAddress: walletData.btcAddress }),
+      }).catch(() => {});
+      return;
+    }
+
     if (cmd.verb === 'launch') {
+      // Default bonding curve params — minimum viable launch via bot.
+      // User can deploy with full config via /create on the web.
+      const BOT_LAUNCH_DEFAULTS = {
+        supplyCap:      '1000000000000000000000000', // 1M whole tokens in base units
+        basePrice:      '1000',                       // 1,000 sats (PRD minimum)
+        priceIncrement: '100',                        // 100 sats per token sold
+        creatorFeeRate: '0',                          // no creator fee
+        mode:           0,                            // ExecutionMode.Standard
+        modeMetadata:   '0x0000000000000000000000000000000000000000000000000000000000000000',
+      };
+
       const { job } = await fetchJSON<{ job: { id: string } }>(`${API()}/api/bot/jobs`, {
         method: 'POST',
         body: JSON.stringify({
           tweetId,
           xHandle,
           command: 'launch',
-          intentJson: { verb: 'launch', name: cmd.name, ticker: cmd.ticker },
+          intentJson: { verb: 'launch', name: cmd.name, ticker: cmd.ticker, ...BOT_LAUNCH_DEFAULTS },
           tokenSymbol: cmd.ticker,
         }),
       });

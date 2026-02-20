@@ -41,9 +41,36 @@ export function startConfirmationWatcher(rwClient: TwitterApiReadWrite) {
           text = T.buyDone(job.tokenSymbol ?? '', tokens, btc, job.launchAddress ?? '', job.txHash);
         }
 
-        if (job.command === 'launch' && job.launchAddress) {
-          const name = (intent['name'] as string | undefined) ?? job.tokenSymbol ?? '';
-          text = T.launchDone(name, job.tokenSymbol ?? '', job.launchAddress);
+        if (job.command === 'sell' && job.txHash) {
+          const TOKEN_UNIT = 1_000_000_000_000_000_000n;
+          const tokenAmountRaw = intent['tokenAmountBaseUnits'] as string | undefined;
+          const tokenAmount = tokenAmountRaw
+            ? Number(BigInt(tokenAmountRaw) / TOKEN_UNIT).toLocaleString()
+            : '?';
+          const btcReceived = job.amountSats ? Number(job.amountSats) / 1e8 : 0;
+          text = T.sellDone(job.tokenSymbol ?? '', tokenAmount, btcReceived, job.txHash);
+        }
+
+        if (job.command === 'launch') {
+          let launchAddr = job.launchAddress;
+          // The launchAddress may not be set at confirmation time — the indexer processes
+          // the LaunchCreated event asynchronously. Search by symbol to find it.
+          if (!launchAddr && job.tokenSymbol) {
+            try {
+              const searchRes = await fetch(`${API()}/api/launches/search?q=${job.tokenSymbol}`);
+              if (searchRes.ok) {
+                const { launches } = await searchRes.json() as {
+                  launches: Array<{ symbol: string; tokenAddress: string }>;
+                };
+                const found = launches?.find(l => l.symbol === job.tokenSymbol);
+                if (found) launchAddr = found.tokenAddress;
+              }
+            } catch { /* best-effort */ }
+          }
+          if (launchAddr) {
+            const name = (intent['name'] as string | undefined) ?? job.tokenSymbol ?? '';
+            text = T.launchDone(name, job.tokenSymbol ?? '', launchAddr);
+          }
         }
 
         if (!text || !job.tweetId) continue;
