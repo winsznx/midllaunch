@@ -1,11 +1,7 @@
-# Railway service configuration for midllaunch-bot
-# --------------------------------------------------
-# The bot compiles TypeScript to dist/ before running.
-# Build: tsc → Start: node dist/index.js
-
 [build]
 builder = "RAILPACK"
 buildCommand = "npm install && npm run build"
+watchPatterns = ["/bot/**"]
 
 [deploy]
 startCommand = "npm run start"
