@@ -1,0 +1,197 @@
+// MidlLaunch Backend Database Schema
+// Indexes contract events from Midl staging network
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Tracks which blocks we've processed (for restart recovery)
+model BlockTracking {
+  id                Int      @id @default(autoincrement())
+  lastProcessedBlock BigInt
+  timestamp         DateTime @updatedAt
+}
+
+// Launch metadata (from LaunchCreated event)
+model Launch {
+  id                String   @id // tokenAddress (primary key)
+  tokenAddress      String   @unique
+  curveAddress      String   @unique
+  creator           String
+  intentId          String   // Section 9.8 correlation
+
+  // Token parameters
+  name              String
+  symbol            String
+  supplyCap         String   // uint256 as string (bigint)
+
+  // Curve parameters (Section 8)
+  basePrice         String   // sats per whole token
+  priceIncrement    String   // sats per token per token
+  creatorFeeRate    Int      // basis points
+
+  // Status
+  status            String @default("ACTIVE") // ACTIVE or FINALIZED
+
+  // Off-chain metadata (IPFS)
+  metadataUri       String?  // ipfs://Qm... CID
+  metadataCID       String?
+  imageUrl          String?
+  description       String?
+  twitterUrl        String?
+  telegramUrl       String?
+  websiteUrl        String?
+  launchType        String   @default("TOKEN")
+
+  // Blockchain data
+  blockNumber       BigInt
+  txHash            String
+  timestamp         DateTime
+
+  // Relations
+  purchases         Purchase[]
+  comments          Comment[]
+
+  // Indexes
+  @@index([creator])
+  @@index([timestamp])
+  @@index([status])
+}
+
+
+// Token purchase events (from TokensPurchased)
+model Purchase {
+  id              String   @id @default(cuid())
+
+  // Relations
+  launch          Launch   @relation(fields: [launchId], references: [id])
+  launchId        String
+
+  // Event data
+  buyer           String
+  intentId        String   // Section 9.8 correlation
+  btcAmount       String   // satoshis (uint256)
+  tokenAmount     String   // base units (uint256)
+  newSupply       String   // total supply after purchase
+  newPrice        String   // price after purchase
+
+  // Supply snapshot for OHLC candle construction
+  supplyBefore    BigInt?
+  supplyAfter     BigInt?
+
+  // Blockchain data
+  blockNumber     BigInt
+  txHash          String
+  timestamp       DateTime
+
+  // Indexes
+  @@index([launchId, timestamp])
+  @@index([buyer])
+  @@index([txHash])
+}
+
+// Community comments on launches
+model Comment {
+  id          String   @id @default(cuid())
+
+  launch      Launch   @relation(fields: [launchId], references: [id])
+  launchId    String
+
+  author      String   // BTC payment address (connected wallet)
+  body        String   // max 500 chars enforced in API
+
+  timestamp   DateTime @default(now())
+
+  @@index([launchId, timestamp])
+}
+
+model NftLaunch {
+  id              String    @id @default(cuid())
+  contractAddress String    @unique
+  name            String
+  symbol          String
+  totalSupply     Int
+  mintPrice       BigInt
+  maxPerWallet    Int
+  metadataCID     String?
+  imageUrl        String?
+  description     String?
+  twitterUrl      String?
+  telegramUrl     String?
+  websiteUrl      String?
+  totalMinted     Int       @default(0)
+  isFinalized     Boolean   @default(false)
+  creatorAddress  String
+  createdAt       DateTime  @default(now())
+  mints           NftMint[]
+
+  @@index([creatorAddress])
+  @@index([createdAt])
+}
+
+model NftMint {
+  id            String    @id @default(cuid())
+  launchId      String
+  launch        NftLaunch @relation(fields: [launchId], references: [id])
+  tokenId       Int
+  buyerAddress  String
+  pricePaidSats BigInt
+  txHash        String
+  btcTxHash     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([launchId, createdAt])
+  @@index([buyerAddress])
+}
+
+model BotJob {
+  id              String    @id @default(cuid())
+  tweetId         String    @unique
+  xHandle         String
+  command         String    // "buy" | "sell" | "launch" | "portfolio" | "help" | "link"
+  intentJson      String
+  status          String    @default("PENDING")
+  // States: PENDING → AWAITING_SIGNATURE → EXECUTING → CONFIRMED → FAILED → EXPIRED
+  launchAddress   String?
+  tokenSymbol     String?
+  amountSats      BigInt?
+  walletAddress   String?
+  txHash          String?
+  btcTxHash       String?
+  replyTweetId        String?
+  expiryReplyTweetId  String?
+  errorMessage    String?
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model XWalletLink {
+  id            String   @id @default(cuid())
+  xHandle       String   @unique
+  btcAddress    String
+  evmAddress    String?
+  signedMessage String
+  linkedAt      DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Side-channel for IPFS metadata before launch is confirmed on-chain
+model PendingMetadata {
+  id          String   @id @default(cuid())
+  btcTxId     String   // Bitcoin tx ID from finalizeBTCTransaction
+  name        String
+  symbol      String
+  metadataCID String   // ipfs://Qm... or just the CID
+  applied     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([name, symbol])
+  @@index([btcTxId])
+}
+
