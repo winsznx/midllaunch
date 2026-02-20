@@ -29,6 +29,7 @@ export interface LaunchTokenInterface extends Interface {
       | "allowance"
       | "approve"
       | "balanceOf"
+      | "burn"
       | "decimals"
       | "factory"
       | "initializeMinter"
@@ -55,6 +56,10 @@ export interface LaunchTokenInterface extends Interface {
   encodeFunctionData(
     functionFragment: "balanceOf",
     values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "burn",
+    values: [AddressLike, BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "decimals", values?: undefined): string;
   encodeFunctionData(functionFragment: "factory", values?: undefined): string;
@@ -86,6 +91,7 @@ export interface LaunchTokenInterface extends Interface {
   decodeFunctionResult(functionFragment: "allowance", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "burn", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "decimals", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "factory", data: BytesLike): Result;
   decodeFunctionResult(
@@ -201,6 +207,12 @@ export interface LaunchToken extends BaseContract {
 
   balanceOf: TypedContractMethod<[account: AddressLike], [bigint], "view">;
 
+  burn: TypedContractMethod<
+    [from: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   decimals: TypedContractMethod<[], [bigint], "view">;
 
   factory: TypedContractMethod<[], [string], "view">;
@@ -260,6 +272,13 @@ export interface LaunchToken extends BaseContract {
   getFunction(
     nameOrSignature: "balanceOf"
   ): TypedContractMethod<[account: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "burn"
+  ): TypedContractMethod<
+    [from: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "decimals"
   ): TypedContractMethod<[], [bigint], "view">;

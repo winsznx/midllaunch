@@ -26,7 +26,6 @@ import type {
 export interface NftFactoryInterface extends Interface {
   getFunction(
     nameOrSignature:
-      | "admin"
       | "allCollections"
       | "createCollection"
       | "getAllCollections"
@@ -35,7 +34,6 @@ export interface NftFactoryInterface extends Interface {
 
   getEvent(nameOrSignatureOrTopic: "CollectionCreated"): EventFragment;
 
-  encodeFunctionData(functionFragment: "admin", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "allCollections",
     values: [BigNumberish]
@@ -61,7 +59,6 @@ export interface NftFactoryInterface extends Interface {
     values: [AddressLike]
   ): string;
 
-  decodeFunctionResult(functionFragment: "admin", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "allCollections",
     data: BytesLike
@@ -157,8 +154,6 @@ export interface NftFactory extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
-  admin: TypedContractMethod<[], [string], "view">;
-
   allCollections: TypedContractMethod<[arg0: BigNumberish], [string], "view">;
 
   createCollection: TypedContractMethod<
@@ -183,9 +178,6 @@ export interface NftFactory extends BaseContract {
     key: string | FunctionFragment
   ): T;
 
-  getFunction(
-    nameOrSignature: "admin"
-  ): TypedContractMethod<[], [string], "view">;
   getFunction(
     nameOrSignature: "allCollections"
   ): TypedContractMethod<[arg0: BigNumberish], [string], "view">;

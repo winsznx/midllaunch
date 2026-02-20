@@ -52,3 +52,5 @@ export type { MidlNFT } from "./contracts/MidlNFT";
 export { MidlNFT__factory } from "./factories/contracts/MidlNFT__factory";
 export type { NftFactory } from "./contracts/NftFactory";
 export { NftFactory__factory } from "./factories/contracts/NftFactory__factory";
+export type { NftMarketplace } from "./contracts/NftMarketplace";
+export { NftMarketplace__factory } from "./factories/contracts/NftMarketplace__factory";

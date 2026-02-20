@@ -6,3 +6,4 @@ export type { LaunchFactory } from "./LaunchFactory";
 export type { LaunchToken } from "./LaunchToken";
 export type { MidlNFT } from "./MidlNFT";
 export type { NftFactory } from "./NftFactory";
+export type { NftMarketplace } from "./NftMarketplace";

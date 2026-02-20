@@ -6,3 +6,4 @@ export { LaunchFactory__factory } from "./LaunchFactory__factory";
 export { LaunchToken__factory } from "./LaunchToken__factory";
 export { MidlNFT__factory } from "./MidlNFT__factory";
 export { NftFactory__factory } from "./NftFactory__factory";
+export { NftMarketplace__factory } from "./NftMarketplace__factory";

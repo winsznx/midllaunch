@@ -29,16 +29,20 @@ export interface BondingCurvePrimaryMarketInterface extends Interface {
       | "basePrice_sats_per_token"
       | "buy"
       | "calculatePurchaseReturn"
+      | "calculateSaleReturn"
       | "creator"
       | "creatorFeeRate"
       | "factory"
       | "getCurrentPrice"
       | "priceIncrement_sats_per_token_per_token"
+      | "sell"
       | "token"
       | "totalBTCDepositedSats"
   ): FunctionFragment;
 
-  getEvent(nameOrSignatureOrTopic: "TokensPurchased"): EventFragment;
+  getEvent(
+    nameOrSignatureOrTopic: "TokensPurchased" | "TokensSold"
+  ): EventFragment;
 
   encodeFunctionData(
     functionFragment: "basePrice_sats_per_token",
@@ -50,6 +54,10 @@ export interface BondingCurvePrimaryMarketInterface extends Interface {
   ): string;
   encodeFunctionData(
     functionFragment: "calculatePurchaseReturn",
+    values: [BigNumberish, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "calculateSaleReturn",
     values: [BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "creator", values?: undefined): string;
@@ -66,6 +74,10 @@ export interface BondingCurvePrimaryMarketInterface extends Interface {
     functionFragment: "priceIncrement_sats_per_token_per_token",
     values?: undefined
   ): string;
+  encodeFunctionData(
+    functionFragment: "sell",
+    values: [BytesLike, BigNumberish, BigNumberish]
+  ): string;
   encodeFunctionData(functionFragment: "token", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "totalBTCDepositedSats",
@@ -79,6 +91,10 @@ export interface BondingCurvePrimaryMarketInterface extends Interface {
   decodeFunctionResult(functionFragment: "buy", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "calculatePurchaseReturn",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "calculateSaleReturn",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "creator", data: BytesLike): Result;
@@ -95,6 +111,7 @@ export interface BondingCurvePrimaryMarketInterface extends Interface {
     functionFragment: "priceIncrement_sats_per_token_per_token",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "sell", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "token", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "totalBTCDepositedSats",
@@ -121,6 +138,37 @@ export namespace TokensPurchasedEvent {
   ];
   export interface OutputObject {
     buyer: string;
+    intentId: string;
+    btcAmountSats: bigint;
+    tokenAmountBaseUnits: bigint;
+    newTotalSupply: bigint;
+    newPrice: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace TokensSoldEvent {
+  export type InputTuple = [
+    seller: AddressLike,
+    intentId: BytesLike,
+    btcAmountSats: BigNumberish,
+    tokenAmountBaseUnits: BigNumberish,
+    newTotalSupply: BigNumberish,
+    newPrice: BigNumberish
+  ];
+  export type OutputTuple = [
+    seller: string,
+    intentId: string,
+    btcAmountSats: bigint,
+    tokenAmountBaseUnits: bigint,
+    newTotalSupply: bigint,
+    newPrice: bigint
+  ];
+  export interface OutputObject {
+    seller: string;
     intentId: string;
     btcAmountSats: bigint;
     tokenAmountBaseUnits: bigint;
@@ -190,6 +238,12 @@ export interface BondingCurvePrimaryMarket extends BaseContract {
     "view"
   >;
 
+  calculateSaleReturn: TypedContractMethod<
+    [tokenAmountBaseUnits: BigNumberish, currentSupplyBaseUnits: BigNumberish],
+    [bigint],
+    "view"
+  >;
+
   creator: TypedContractMethod<[], [string], "view">;
 
   creatorFeeRate: TypedContractMethod<[], [bigint], "view">;
@@ -202,6 +256,16 @@ export interface BondingCurvePrimaryMarket extends BaseContract {
     [],
     [bigint],
     "view"
+  >;
+
+  sell: TypedContractMethod<
+    [
+      intentId: BytesLike,
+      tokenAmountBaseUnits: BigNumberish,
+      minBtcOut: BigNumberish
+    ],
+    [void],
+    "nonpayable"
   >;
 
   token: TypedContractMethod<[], [string], "view">;
@@ -230,6 +294,13 @@ export interface BondingCurvePrimaryMarket extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "calculateSaleReturn"
+  ): TypedContractMethod<
+    [tokenAmountBaseUnits: BigNumberish, currentSupplyBaseUnits: BigNumberish],
+    [bigint],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "creator"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -245,6 +316,17 @@ export interface BondingCurvePrimaryMarket extends BaseContract {
     nameOrSignature: "priceIncrement_sats_per_token_per_token"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "sell"
+  ): TypedContractMethod<
+    [
+      intentId: BytesLike,
+      tokenAmountBaseUnits: BigNumberish,
+      minBtcOut: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "token"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -258,6 +340,13 @@ export interface BondingCurvePrimaryMarket extends BaseContract {
     TokensPurchasedEvent.OutputTuple,
     TokensPurchasedEvent.OutputObject
   >;
+  getEvent(
+    key: "TokensSold"
+  ): TypedContractEvent<
+    TokensSoldEvent.InputTuple,
+    TokensSoldEvent.OutputTuple,
+    TokensSoldEvent.OutputObject
+  >;
 
   filters: {
     "TokensPurchased(address,bytes32,uint256,uint256,uint256,uint256)": TypedContractEvent<
@@ -269,6 +358,17 @@ export interface BondingCurvePrimaryMarket extends BaseContract {
       TokensPurchasedEvent.InputTuple,
       TokensPurchasedEvent.OutputTuple,
       TokensPurchasedEvent.OutputObject
+    >;
+
+    "TokensSold(address,bytes32,uint256,uint256,uint256,uint256)": TypedContractEvent<
+      TokensSoldEvent.InputTuple,
+      TokensSoldEvent.OutputTuple,
+      TokensSoldEvent.OutputObject
+    >;
+    TokensSold: TypedContractEvent<
+      TokensSoldEvent.InputTuple,
+      TokensSoldEvent.OutputTuple,
+      TokensSoldEvent.OutputObject
     >;
   };
 }
