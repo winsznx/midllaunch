@@ -18,6 +18,7 @@ const LAUNCH_FACTORY_ABI = [
 
 const BONDING_CURVE_ABI = [
   "event TokensPurchased(address indexed buyer, bytes32 indexed intentId, uint256 btcAmountSats, uint256 tokenAmountBaseUnits, uint256 newTotalSupply, uint256 newPrice)",
+  "event TokensSold(address indexed seller, bytes32 indexed intentId, uint256 btcAmountSats, uint256 tokenAmountBaseUnits, uint256 newTotalSupply, uint256 newPrice)",
   "function creatorFeeRate() view returns (uint256)"
 ];
 
@@ -312,6 +313,75 @@ class MidlLaunchIndexer {
     }
   }
 
+  async processTokensSoldEvent(log: ethers.Log, curveAddress: string) {
+    try {
+      const curveContract = new ethers.Contract(curveAddress, BONDING_CURVE_ABI, this.provider);
+      const decoded = curveContract.interface.parseLog({
+        topics: log.topics as string[],
+        data: log.data,
+      });
+      if (!decoded) return;
+
+      const { seller, intentId, btcAmountSats, tokenAmountBaseUnits, newTotalSupply, newPrice } = decoded.args;
+
+      console.log(`[TokensSold] Seller: ${seller}, BTC returned: ${btcAmountSats.toString()} sats`);
+
+      const block = await this.provider.getBlock(log.blockNumber);
+      if (!block) return;
+
+      const launch = await prisma.launch.findUnique({
+        where: { curveAddress: curveAddress.toLowerCase() },
+      });
+      if (!launch) {
+        console.error(`[TokensSold] Launch not found for curve: ${curveAddress}`);
+        return;
+      }
+
+      const supplyBefore = newTotalSupply + tokenAmountBaseUnits;
+
+      await prisma.purchase.create({
+        data: {
+          launchId: launch.id,
+          tradeType: 'SELL',
+          buyer: seller.toLowerCase(),
+          intentId,
+          btcAmount: btcAmountSats.toString(),
+          tokenAmount: tokenAmountBaseUnits.toString(),
+          newSupply: newTotalSupply.toString(),
+          newPrice: newPrice.toString(),
+          supplyBefore,
+          supplyAfter: newTotalSupply,
+          blockNumber: BigInt(log.blockNumber),
+          txHash: log.transactionHash || '',
+          timestamp: new Date(block.timestamp * 1000),
+        },
+      });
+
+      console.log(`[DB] Stored sell for launch: ${launch.name}`);
+
+      await redis.publish('tokens_sold', JSON.stringify({
+        launchId: launch.id,
+        tokenAddress: launch.tokenAddress,
+        symbol: launch.symbol,
+        seller: seller.toLowerCase(),
+        btcAmount: btcAmountSats.toString(),
+        tokenAmount: tokenAmountBaseUnits.toString(),
+        newSupply: newTotalSupply.toString(),
+        newPrice: newPrice.toString(),
+        timestamp: new Date(block.timestamp * 1000).toISOString(),
+      }));
+
+      await redis.publish('price_update', JSON.stringify({
+        launchId: launch.id,
+        tokenAddress: launch.tokenAddress,
+        newPrice: newPrice.toString(),
+        newSupply: newTotalSupply.toString(),
+      }));
+    } catch (error) {
+      console.error('[TokensSold] Error processing event:', error);
+    }
+  }
+
   async indexBlock(blockNumber: number) {
     if (this.checkCircuitBreaker()) {
       console.log('[Indexer] Circuit breaker OPEN - skipping block indexing');
@@ -332,22 +402,36 @@ class MidlLaunchIndexer {
         await this.processLaunchCreatedEvent(log as ethers.Log);
       }
 
-      // Batch all TokensPurchased events across all known curves in one RPC call
+      // Batch TokensPurchased and TokensSold across all known curves in one RPC call each
       const curveAddresses = Array.from(this.knownCurveAddresses);
       if (curveAddresses.length > 0) {
         const purchasedTopic = this.curveInterface.getEvent('TokensPurchased')!.topicHash;
+        const soldTopic = this.curveInterface.getEvent('TokensSold')!.topicHash;
 
-        const purchaseLogs = await this.retryWithBackoff(() =>
-          this.provider.getLogs({
-            address: curveAddresses,
-            topics: [purchasedTopic],
-            fromBlock: blockNumber,
-            toBlock: blockNumber,
-          })
-        );
+        const [purchaseLogs, sellLogs] = await Promise.all([
+          this.retryWithBackoff(() =>
+            this.provider.getLogs({
+              address: curveAddresses,
+              topics: [purchasedTopic],
+              fromBlock: blockNumber,
+              toBlock: blockNumber,
+            })
+          ),
+          this.retryWithBackoff(() =>
+            this.provider.getLogs({
+              address: curveAddresses,
+              topics: [soldTopic],
+              fromBlock: blockNumber,
+              toBlock: blockNumber,
+            })
+          ),
+        ]);
 
         for (const log of purchaseLogs) {
           await this.processTokensPurchasedEvent(log, log.address.toLowerCase());
+        }
+        for (const log of sellLogs) {
+          await this.processTokensSoldEvent(log, log.address.toLowerCase());
         }
       }
 

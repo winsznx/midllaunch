@@ -64,7 +64,7 @@ model Launch {
 }
 
 
-// Token purchase events (from TokensPurchased)
+// Trade events — both buys (TokensPurchased) and sells (TokensSold)
 model Purchase {
   id              String   @id @default(cuid())
 
@@ -72,13 +72,16 @@ model Purchase {
   launch          Launch   @relation(fields: [launchId], references: [id])
   launchId        String
 
-  // Event data
+  // Trade direction
+  tradeType       String   @default("BUY")  // "BUY" | "SELL"
+
+  // Event data (buyer = trade initiator address for both buys and sells)
   buyer           String
   intentId        String   // Section 9.8 correlation
-  btcAmount       String   // satoshis (uint256)
-  tokenAmount     String   // base units (uint256)
-  newSupply       String   // total supply after purchase
-  newPrice        String   // price after purchase
+  btcAmount       String   // satoshis — spent on BUY, received on SELL
+  tokenAmount     String   // base units — received on BUY, sent on SELL
+  newSupply       String   // total supply after trade
+  newPrice        String   // price after trade
 
   // Supply snapshot for OHLC candle construction
   supplyBefore    BigInt?
@@ -93,6 +96,7 @@ model Purchase {
   @@index([launchId, timestamp])
   @@index([buyer])
   @@index([txHash])
+  @@index([tradeType])
 }
 
 // Community comments on launches
