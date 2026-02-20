@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // Tracks which blocks we've processed (for restart recovery)
@@ -39,13 +39,13 @@ model Launch {
   status            String @default("ACTIVE") // ACTIVE or FINALIZED
 
   // Off-chain metadata (IPFS)
-  metadataUri       String?  // ipfs://Qm... CID
+  metadataUri       String?  @db.Text
   metadataCID       String?
-  imageUrl          String?
-  description       String?
-  twitterUrl        String?
-  telegramUrl       String?
-  websiteUrl        String?
+  imageUrl          String?  @db.Text
+  description       String?  @db.Text
+  twitterUrl        String?  @db.Text
+  telegramUrl       String?  @db.Text
+  websiteUrl        String?  @db.Text
   launchType        String   @default("TOKEN")
 
   // Blockchain data
@@ -122,12 +122,12 @@ model NftLaunch {
   totalSupply     Int
   mintPrice       BigInt
   maxPerWallet    Int
-  metadataCID     String?
-  imageUrl        String?
-  description     String?
-  twitterUrl      String?
-  telegramUrl     String?
-  websiteUrl      String?
+  metadataCID     String?   @db.Text
+  imageUrl        String?   @db.Text
+  description     String?   @db.Text
+  twitterUrl      String?   @db.Text
+  telegramUrl     String?   @db.Text
+  websiteUrl      String?   @db.Text
   totalMinted     Int       @default(0)
   isFinalized     Boolean   @default(false)
   creatorAddress  String
@@ -158,7 +158,7 @@ model BotJob {
   tweetId         String    @unique
   xHandle         String
   command         String    // "buy" | "sell" | "launch" | "portfolio" | "help" | "link"
-  intentJson      String
+  intentJson      String    @db.Text
   status          String    @default("PENDING")
   // States: PENDING → AWAITING_SIGNATURE → EXECUTING → CONFIRMED → FAILED → EXPIRED
   launchAddress   String?
@@ -180,7 +180,7 @@ model XWalletLink {
   xHandle       String   @unique
   btcAddress    String
   evmAddress    String?
-  signedMessage String
+  signedMessage String    @db.Text
   linkedAt      DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
