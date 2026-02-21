@@ -76,7 +76,7 @@ export function MobileMenu() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-[100] md:hidden">
           {/* Solid backdrop */}
           <div
             className="absolute inset-0"
@@ -140,7 +140,7 @@ export function MobileMenu() {
             </div>
 
             {/* Scrollable body — wallet + nav together */}
-            <div className="flex-1 overflow-y-auto flex flex-col">
+            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
 
             {/* Wallet section */}
             <div

@@ -40,7 +40,7 @@ export default function LaunchesPage() {
 
   const tab = TABS[activeTab];
 
-  const { data, isLoading, error } = useLaunches({
+  const { data, isLoading } = useLaunches({
     status: tab.status,
     sortBy: tab.sort,
     limit: 60,
@@ -121,24 +121,26 @@ export default function LaunchesPage() {
 
       {/* Sort tabs (tokens only) */}
       {assetType === 'tokens' && (
-        <div
-          className="flex gap-1 p-1 rounded-xl mb-8 w-fit overflow-x-auto"
-          style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
-        >
-          {TABS.map((t, i) => (
-            <button
-              key={t.label}
-              onClick={() => setActiveTab(i)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
-              style={{
-                background: activeTab === i ? 'var(--bg-elevated)' : 'transparent',
-                color: activeTab === i ? 'var(--text-primary)' : 'var(--text-secondary)',
-              }}
-            >
-              <span>{t.icon}</span>
-              {t.label}
-            </button>
-          ))}
+        <div className="w-full overflow-x-auto mb-8">
+          <div
+            className="flex gap-1 p-1 rounded-xl w-fit min-w-full sm:min-w-0"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
+          >
+            {TABS.map((t, i) => (
+              <button
+                key={t.label}
+                onClick={() => setActiveTab(i)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap"
+                style={{
+                  background: activeTab === i ? 'var(--bg-elevated)' : 'transparent',
+                  color: activeTab === i ? 'var(--text-primary)' : 'var(--text-secondary)',
+                }}
+              >
+                <span>{t.icon}</span>
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -169,15 +171,6 @@ export default function LaunchesPage() {
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div
-          className="rounded-xl p-4 mb-6 text-sm"
-          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--red-500)' }}
-        >
-          {error instanceof Error ? error.message : 'Failed to load launches'}
-        </div>
-      )}
 
       {/* Grid */}
       {assetType === 'tokens' ? (
