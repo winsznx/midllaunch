@@ -86,15 +86,17 @@ export function MobileMenu() {
 
           {/* Slide-in panel — fully opaque, theme-aware */}
           <div
-            className="absolute right-0 top-0 bottom-0 w-[85vw] max-w-[320px] flex flex-col shadow-2xl overflow-hidden"
+            className="absolute right-0 top-0 bottom-0 w-[85vw] max-w-[320px] shadow-2xl overflow-hidden"
             style={{
               background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--bg-border)',
+              display: 'grid',
+              gridTemplateRows: 'auto 1fr auto',
             }}
           >
             {/* Header */}
             <div
-              className="flex justify-between items-center p-4 flex-shrink-0"
+              className="flex justify-between items-center p-4"
               style={{
                 borderBottom: '1px solid var(--bg-border)',
                 background: 'var(--bg-surface)',
@@ -140,14 +142,13 @@ export function MobileMenu() {
             </div>
 
             {/* Scrollable body — wallet + nav together */}
-            <div className="flex-1 overflow-y-auto flex flex-col w-full relative">
+            <div className="overflow-y-auto">
 
               {/* Wallet section */}
               <div
-                className="p-4 flex-shrink-0"
+                className="p-4"
                 style={{
                   borderBottom: '1px solid var(--bg-border)',
-                  background: 'var(--bg-surface)',
                 }}
               >
                 {paymentAccount ? (
@@ -249,10 +250,7 @@ export function MobileMenu() {
               </div>
 
               {/* Nav links */}
-              <nav
-                className="flex flex-col gap-0.5 p-3 flex-1"
-                style={{ background: 'var(--bg-surface)' }}
-              >
+              <nav className="flex flex-col gap-0.5 p-3">
                 {NAV_LINKS.map(({ href, label }) => {
                   const active = pathname === href || (href !== '/' && pathname.startsWith(href));
                   return (
@@ -275,11 +273,10 @@ export function MobileMenu() {
 
             {/* Footer */}
             <div
-              className="p-4 text-xs flex-shrink-0"
+              className="p-4 text-xs"
               style={{
                 borderTop: '1px solid var(--bg-border)',
                 color: 'var(--text-tertiary)',
-                background: 'var(--bg-surface)',
               }}
             >
               Built on Midl Network
