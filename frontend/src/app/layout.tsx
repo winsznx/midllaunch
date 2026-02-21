@@ -15,6 +15,7 @@ import { useWebSocket } from "@/lib/hooks/useWebSocket";
 import { midlConfig } from "@/lib/midl/config";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
+import { Analytics } from "@vercel/analytics/next";
 
 function WebSocketProvider({ children }: { children: React.ReactNode }) {
   useWebSocket();
@@ -70,6 +71,7 @@ export default function RootLayout({
                     error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
                   }}
                 />
+              <Analytics />
               </WebSocketProvider>
             </WagmiMidlProvider>
           </QueryClientProvider>
