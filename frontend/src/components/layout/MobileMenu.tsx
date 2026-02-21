@@ -52,7 +52,7 @@ export function MobileMenu() {
           await addNetwork(midlConfig, connectorId, {
             name: 'MIDL Regtest',
             network: 'regtest',
-            rpcUrl: 'https://rpc.staging.midl.xyz',
+            rpcUrl: 'https://mempool.staging.midl.xyz/api',
             indexerUrl: 'https://api-regtest-midl.xverse.app/',
           });
         } catch { /* non-fatal */ }
