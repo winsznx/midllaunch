@@ -58,7 +58,7 @@ export default function TransactionsPage() {
       >
         <h3 className="text-xs font-semibold uppercase tracking-wider mb-4"
           style={{ color: 'var(--text-tertiary)' }}>
-          Transaction Lifecycle (Section 9.9)
+          Transaction Lifecycle
         </h3>
         <div className="flex items-start gap-0">
           {LIFECYCLE_STEPS.map((step, i) => (
