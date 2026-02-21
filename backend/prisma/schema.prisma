@@ -192,6 +192,7 @@ model PendingMetadata {
   name        String
   symbol      String
   metadataCID String   // ipfs://Qm... or just the CID
+  imageCID    String?  // CID of the token image
   applied     Boolean  @default(false)
   createdAt   DateTime @default(now())
 

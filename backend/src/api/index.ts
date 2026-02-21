@@ -53,13 +53,16 @@ function parseIntParam(value: unknown, defaultValue: number): number {
 }
 
 const PORT = process.env.PORT || 4000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3002';
+const CORS_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:3002')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
 
 const readLimiter = rateLimit({ windowMs: 60_000, max: 100, standardHeaders: true, legacyHeaders: false });
 const writeLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
 
 // Middleware
-app.use(cors({ origin: CORS_ORIGIN }));
+app.use(cors({ origin: CORS_ORIGINS.length === 1 ? CORS_ORIGINS[0] : CORS_ORIGINS }));
 app.use(express.json());
 app.use('/api', readLimiter);
 
@@ -723,9 +726,10 @@ app.get('/api/launches/:tokenAddress/comments', async (req, res) => {
 // POST /api/pending-metadata - Store IPFS metadata CID before tx confirms
 app.post('/api/pending-metadata', async (req, res) => {
   try {
-    const { btcTxId, metadataCID, name, symbol } = req.body as {
+    const { btcTxId, metadataCID, imageCID, name, symbol } = req.body as {
       btcTxId?: string;
       metadataCID?: string;
+      imageCID?: string;
       name?: string;
       symbol?: string;
     };
@@ -735,7 +739,7 @@ app.post('/api/pending-metadata', async (req, res) => {
     }
 
     await prisma.pendingMetadata.create({
-      data: { btcTxId, metadataCID, name, symbol },
+      data: { btcTxId, metadataCID, ...(imageCID ? { imageCID } : {}), name, symbol },
     });
 
     res.status(201).json({ ok: true });
@@ -1222,5 +1226,5 @@ app.get('/api/bot/stats', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`[API] Server running on http://localhost:${PORT}`);
-  console.log(`[API] CORS origin: ${CORS_ORIGIN}`);
+  console.log(`[API] CORS origins: ${CORS_ORIGINS.join(', ')}`);
 });
