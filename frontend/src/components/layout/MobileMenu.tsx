@@ -9,13 +9,13 @@ import { midlConfig } from '@/lib/midl/config';
 import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
-  { href: '/launches',     label: 'Browse'       },
-  { href: '/create',       label: 'Launch Token' },
-  { href: '/launch-nft',   label: 'Launch NFT'   },
-  { href: '/portfolio',    label: 'Portfolio'    },
-  { href: '/transactions', label: 'Txns'         },
-  { href: '/bot-demo',     label: 'Bot'          },
-  { href: '/link-x',       label: 'Link to X'   },
+  { href: '/launches', label: 'Browse' },
+  { href: '/create', label: 'Launch Token' },
+  { href: '/launch-nft', label: 'Launch NFT' },
+  { href: '/portfolio', label: 'Portfolio' },
+  { href: '/transactions', label: 'Txns' },
+  { href: '/bot-demo', label: 'Bot' },
+  { href: '/link-x', label: 'Link to X' },
 ];
 
 export function MobileMenu() {
@@ -86,18 +86,18 @@ export function MobileMenu() {
 
           {/* Slide-in panel — fully opaque, theme-aware */}
           <div
-            className="absolute right-0 top-0 bottom-0 w-72 flex flex-col"
+            className="absolute right-0 top-0 bottom-0 w-[85vw] max-w-[320px] flex flex-col shadow-2xl overflow-hidden"
             style={{
-              background: theme === 'dark' ? '#161412' : '#f0ebe2',
+              background: 'var(--bg-surface)',
               borderLeft: '1px solid var(--bg-border)',
             }}
           >
             {/* Header */}
             <div
-              className="flex justify-between items-center p-4"
+              className="flex justify-between items-center p-4 flex-shrink-0"
               style={{
                 borderBottom: '1px solid var(--bg-border)',
-                background: theme === 'dark' ? '#161412' : '#f0ebe2',
+                background: 'var(--bg-surface)',
               }}
             >
               <span className="font-display font-bold text-base">
@@ -140,136 +140,136 @@ export function MobileMenu() {
             </div>
 
             {/* Scrollable body — wallet + nav together */}
-            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+            <div className="flex-1 overflow-y-auto flex flex-col w-full relative">
 
-            {/* Wallet section */}
-            <div
-              className="p-4"
-              style={{
-                borderBottom: '1px solid var(--bg-border)',
-                background: theme === 'dark' ? '#161412' : '#f0ebe2',
-              }}
-            >
-              {paymentAccount ? (
-                <div className="space-y-2">
-                  {/* BTC balance */}
-                  <div
-                    className="px-3 py-2.5 rounded-xl flex items-center justify-between"
-                    style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--green-500)' }} />
-                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>BTC Balance</span>
+              {/* Wallet section */}
+              <div
+                className="p-4 flex-shrink-0"
+                style={{
+                  borderBottom: '1px solid var(--bg-border)',
+                  background: 'var(--bg-surface)',
+                }}
+              >
+                {paymentAccount ? (
+                  <div className="space-y-2">
+                    {/* BTC balance */}
+                    <div
+                      className="px-3 py-2.5 rounded-xl flex items-center justify-between"
+                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--green-500)' }} />
+                        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>BTC Balance</span>
+                      </div>
+                      <span className="text-sm font-mono font-semibold" style={{ color: 'var(--orange-500)' }}>
+                        {btcBalance ?? '—'} BTC
+                      </span>
                     </div>
-                    <span className="text-sm font-mono font-semibold" style={{ color: 'var(--orange-500)' }}>
-                      {btcBalance ?? '—'} BTC
-                    </span>
-                  </div>
 
-                  {/* Payment address */}
-                  <div className="px-3 py-2 rounded-xl space-y-0.5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}>
-                    <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Payment</div>
-                    <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
-                      {paymentAccount.address}
-                    </div>
-                  </div>
-
-                  {/* Ordinals address */}
-                  {ordinalsAccount && (
+                    {/* Payment address */}
                     <div className="px-3 py-2 rounded-xl space-y-0.5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}>
-                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Ordinals</div>
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Payment</div>
                       <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
-                        {ordinalsAccount.address}
+                        {paymentAccount.address}
                       </div>
                     </div>
-                  )}
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(paymentAccount.address);
-                        toast.success('Copied');
-                      }}
-                      className="py-2 rounded-lg text-xs font-medium transition-all hover:opacity-80"
-                      style={{
-                        background: 'var(--bg-elevated)',
-                        color: 'var(--text-secondary)',
-                        border: '1px solid var(--bg-border)',
-                      }}
-                    >
-                      Copy Address
-                    </button>
-                    <button
-                      onClick={() => { disconnect(); toast.success('Disconnected'); }}
-                      className="py-2 rounded-lg text-xs font-medium transition-all hover:opacity-80"
-                      style={{
-                        background: 'rgba(239,68,68,0.08)',
-                        color: 'var(--red-500)',
-                        border: '1px solid rgba(239,68,68,0.2)',
-                      }}
-                    >
-                      Disconnect
-                    </button>
+                    {/* Ordinals address */}
+                    {ordinalsAccount && (
+                      <div className="px-3 py-2 rounded-xl space-y-0.5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}>
+                        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Ordinals</div>
+                        <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                          {ordinalsAccount.address}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(paymentAccount.address);
+                          toast.success('Copied');
+                        }}
+                        className="py-2 rounded-lg text-xs font-medium transition-all hover:opacity-80"
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--bg-border)',
+                        }}
+                      >
+                        Copy Address
+                      </button>
+                      <button
+                        onClick={() => { disconnect(); toast.success('Disconnected'); }}
+                        className="py-2 rounded-lg text-xs font-medium transition-all hover:opacity-80"
+                        style={{
+                          background: 'rgba(239,68,68,0.08)',
+                          color: 'var(--red-500)',
+                          border: '1px solid rgba(239,68,68,0.2)',
+                        }}
+                      >
+                        Disconnect
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : connectors.length === 1 ? (
-                <button
-                  onClick={() => handleConnect(connectors[0].id)}
-                  disabled={isConnecting}
-                  className="btn btn-primary w-full text-sm"
-                >
-                  {isConnecting ? 'Connecting…' : `Connect ${connectors[0].metadata.name}`}
-                </button>
-              ) : (
-                <div className="space-y-1.5">
-                  <p className="text-xs mb-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                    Connect wallet
-                  </p>
-                  {connectors.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => handleConnect(c.id)}
-                      disabled={isConnecting}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+                ) : connectors?.length === 1 ? (
+                  <button
+                    onClick={() => handleConnect(connectors[0].id)}
+                    disabled={isConnecting}
+                    className="btn btn-primary w-full text-sm"
+                  >
+                    {isConnecting ? 'Connecting…' : `Connect ${connectors[0].metadata.name}`}
+                  </button>
+                ) : (
+                  <div className="space-y-1.5">
+                    <p className="text-xs mb-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                      Connect wallet
+                    </p>
+                    {connectors?.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => handleConnect(c.id)}
+                        disabled={isConnecting}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+                        style={{
+                          background: 'var(--bg-elevated)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--bg-border)',
+                        }}
+                      >
+                        {c.metadata.icon && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={c.metadata.icon} alt="" width={20} height={20} className="rounded-sm flex-shrink-0" />
+                        )}
+                        {c.metadata.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Nav links */}
+              <nav
+                className="flex flex-col gap-0.5 p-3 flex-1"
+                style={{ background: 'var(--bg-surface)' }}
+              >
+                {NAV_LINKS.map(({ href, label }) => {
+                  const active = pathname === href || (href !== '/' && pathname.startsWith(href));
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className="px-4 py-3 rounded-xl text-sm font-medium transition-all"
                       style={{
-                        background: 'var(--bg-elevated)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--bg-border)',
+                        color: active ? 'var(--orange-500)' : 'var(--text-secondary)',
+                        background: active ? 'rgba(249,115,22,0.08)' : 'transparent',
                       }}
                     >
-                      {c.metadata.icon && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.metadata.icon} alt="" width={20} height={20} className="rounded-sm flex-shrink-0" />
-                      )}
-                      {c.metadata.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Nav links */}
-            <nav
-              className="flex flex-col gap-0.5 p-3 flex-1"
-              style={{ background: theme === 'dark' ? '#161412' : '#f0ebe2' }}
-            >
-              {NAV_LINKS.map(({ href, label }) => {
-                const active = pathname === href || (href !== '/' && pathname.startsWith(href));
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="px-4 py-3 rounded-xl text-sm font-medium transition-all"
-                    style={{
-                      color: active ? 'var(--orange-500)' : 'var(--text-secondary)',
-                      background: active ? 'rgba(249,115,22,0.08)' : 'transparent',
-                    }}
-                  >
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
+                      {label}
+                    </Link>
+                  );
+                })}
+              </nav>
 
             </div> {/* end scrollable body */}
 
@@ -279,7 +279,7 @@ export function MobileMenu() {
               style={{
                 borderTop: '1px solid var(--bg-border)',
                 color: 'var(--text-tertiary)',
-                background: theme === 'dark' ? '#161412' : '#f0ebe2',
+                background: 'var(--bg-surface)',
               }}
             >
               Built on Midl Network
