@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useConnect, useAccounts, useDisconnect } from '@midl/react';
+import { useConnect, useAccounts, useDisconnect, useBalance } from '@midl/react';
 import { AddressPurpose, addNetwork } from '@midl/core';
 import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '@/lib/hooks/useTheme';
@@ -83,6 +83,9 @@ export function Header() {
   };
 
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
+  const ordinalsAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Ordinals);
+  const { balance } = useBalance({ address: paymentAccount?.address });
+  const btcBalance = paymentAccount ? (balance / 1e8).toFixed(8).replace(/\.?0+$/, '') : null;
   const isConnecting = status === 'pending';
 
   return (
@@ -244,24 +247,48 @@ export function Header() {
                   className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                   style={{ background: 'var(--green-500)' }}
                 />
-                <span
-                  className="text-xs font-mono"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
+                <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
                   {formatAddress(paymentAccount.address)}
                 </span>
+                {btcBalance !== null && (
+                  <span className="text-xs font-mono font-medium" style={{ color: 'var(--orange-500)' }}>
+                    {btcBalance} BTC
+                  </span>
+                )}
               </button>
 
               {showWalletMenu && (
                 <div
-                  className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden shadow-lg z-10 min-w-max"
-                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
+                  className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden shadow-lg z-10"
+                  style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)', minWidth: '260px' }}
                 >
-                  <div className="px-4 py-2.5 border-b" style={{ borderColor: 'var(--bg-border)' }}>
-                    <div className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
-                      {paymentAccount.address.slice(0, 14)}…{paymentAccount.address.slice(-8)}
+                  {/* BTC balance */}
+                  <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--bg-border)' }}>
+                    <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>BTC Balance</div>
+                    <div className="text-base font-mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      {btcBalance ?? '—'} BTC
                     </div>
                   </div>
+
+                  {/* Addresses */}
+                  <div className="px-4 py-3 border-b space-y-2.5" style={{ borderColor: 'var(--bg-border)' }}>
+                    <div>
+                      <div className="text-xs mb-0.5" style={{ color: 'var(--text-tertiary)' }}>Payment</div>
+                      <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                        {paymentAccount.address}
+                      </div>
+                    </div>
+                    {ordinalsAccount && (
+                      <div>
+                        <div className="text-xs mb-0.5" style={{ color: 'var(--text-tertiary)' }}>Ordinals</div>
+                        <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                          {ordinalsAccount.address}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(paymentAccount.address);
@@ -271,7 +298,7 @@ export function Header() {
                     className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
                     style={{ color: 'var(--text-primary)' }}
                   >
-                    <span>📋</span> Copy Address
+                    <span>📋</span> Copy Payment Address
                   </button>
                   <Link
                     href="/link-x"

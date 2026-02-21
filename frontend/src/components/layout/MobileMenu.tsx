@@ -2,20 +2,20 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useConnect, useAccounts, useDisconnect } from '@midl/react';
+import { useConnect, useAccounts, useDisconnect, useBalance } from '@midl/react';
 import { AddressPurpose, addNetwork } from '@midl/core';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { midlConfig } from '@/lib/midl/config';
 import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
-  { href: '/launches', label: 'Browse' },
-  { href: '/create', label: 'Launch Token' },
-  { href: '/launch-nft', label: 'Launch NFT' },
-  { href: '/portfolio', label: 'Portfolio' },
-  { href: '/transactions', label: 'Transactions' },
-  { href: '/bot-demo', label: 'Bot Demo' },
-  { href: '/link-x', label: 'Link to X' },
+  { href: '/launches',     label: 'Browse'       },
+  { href: '/create',       label: 'Launch Token' },
+  { href: '/launch-nft',   label: 'Launch NFT'   },
+  { href: '/portfolio',    label: 'Portfolio'    },
+  { href: '/transactions', label: 'Txns'         },
+  { href: '/bot-demo',     label: 'Bot'          },
+  { href: '/link-x',       label: 'Link to X'   },
 ];
 
 export function MobileMenu() {
@@ -29,6 +29,9 @@ export function MobileMenu() {
   const { accounts } = useAccounts();
   const { disconnect } = useDisconnect();
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
+  const ordinalsAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Ordinals);
+  const { balance } = useBalance({ address: paymentAccount?.address });
+  const btcBalance = paymentAccount ? (balance / 1e8).toFixed(8).replace(/\.?0+$/, '') : null;
   const isConnecting = status === 'pending';
 
   useEffect(() => {
@@ -136,6 +139,9 @@ export function MobileMenu() {
               </div>
             </div>
 
+            {/* Scrollable body — wallet + nav together */}
+            <div className="flex-1 overflow-y-auto flex flex-col">
+
             {/* Wallet section */}
             <div
               className="p-4"
@@ -146,18 +152,38 @@ export function MobileMenu() {
             >
               {paymentAccount ? (
                 <div className="space-y-2">
+                  {/* BTC balance */}
                   <div
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+                    className="px-3 py-2.5 rounded-xl flex items-center justify-between"
                     style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
                   >
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: 'var(--green-500)' }}
-                    />
-                    <span className="text-xs font-mono flex-1 truncate" style={{ color: 'var(--text-secondary)' }}>
-                      {paymentAccount.address.slice(0, 12)}…{paymentAccount.address.slice(-6)}
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--green-500)' }} />
+                      <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>BTC Balance</span>
+                    </div>
+                    <span className="text-sm font-mono font-semibold" style={{ color: 'var(--orange-500)' }}>
+                      {btcBalance ?? '—'} BTC
                     </span>
                   </div>
+
+                  {/* Payment address */}
+                  <div className="px-3 py-2 rounded-xl space-y-0.5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}>
+                    <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Payment</div>
+                    <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                      {paymentAccount.address}
+                    </div>
+                  </div>
+
+                  {/* Ordinals address */}
+                  {ordinalsAccount && (
+                    <div className="px-3 py-2 rounded-xl space-y-0.5" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}>
+                      <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Ordinals</div>
+                      <div className="text-xs font-mono break-all" style={{ color: 'var(--text-secondary)' }}>
+                        {ordinalsAccount.address}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => {
@@ -171,7 +197,7 @@ export function MobileMenu() {
                         border: '1px solid var(--bg-border)',
                       }}
                     >
-                      Copy
+                      Copy Address
                     </button>
                     <button
                       onClick={() => { disconnect(); toast.success('Disconnected'); }}
@@ -224,7 +250,7 @@ export function MobileMenu() {
 
             {/* Nav links */}
             <nav
-              className="flex flex-col gap-0.5 p-3 flex-1 overflow-y-auto"
+              className="flex flex-col gap-0.5 p-3 flex-1"
               style={{ background: theme === 'dark' ? '#161412' : '#f0ebe2' }}
             >
               {NAV_LINKS.map(({ href, label }) => {
@@ -245,9 +271,11 @@ export function MobileMenu() {
               })}
             </nav>
 
+            </div> {/* end scrollable body */}
+
             {/* Footer */}
             <div
-              className="p-4 text-xs"
+              className="p-4 text-xs flex-shrink-0"
               style={{
                 borderTop: '1px solid var(--bg-border)',
                 color: 'var(--text-tertiary)',
