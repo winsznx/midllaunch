@@ -19,7 +19,7 @@ class APIClient {
     this.baseURL = baseURL;
   }
 
-  private async fetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  private async fetch<T>(endpoint: string, options?: RequestInit): Promise<T | null> {
     const url = `${this.baseURL}${endpoint}`;
     const response = await fetch(url, {
       ...options,
@@ -29,8 +29,12 @@ class APIClient {
       },
     });
 
+    if (response.status === 404) {
+      return null;
+    }
+
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      throw new Error(`API Error: ${response.status}`);
     }
 
     return response.json();
@@ -41,7 +45,7 @@ class APIClient {
     sortBy?: 'newest' | 'price_low' | 'price_high' | 'trending' | 'near_cap';
     limit?: number;
     offset?: number;
-  }): Promise<{ launches: Launch[]; total: number }> {
+  }): Promise<{ launches: Launch[]; total: number } | null> {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
     if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
@@ -52,14 +56,14 @@ class APIClient {
     return this.fetch(`/api/launches${query ? `?${query}` : ''}`);
   }
 
-  async getLaunch(tokenAddress: string): Promise<Launch> {
+  async getLaunch(tokenAddress: string): Promise<Launch | null> {
     return this.fetch(`/api/launches/${tokenAddress.toLowerCase()}`);
   }
 
   async getPurchases(tokenAddress: string, params?: {
     limit?: number;
     offset?: number;
-  }): Promise<{ purchases: Purchase[]; total: number }> {
+  }): Promise<{ purchases: Purchase[]; total: number } | null> {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
@@ -70,14 +74,14 @@ class APIClient {
     );
   }
 
-  async getUserHoldings(address: string): Promise<{ holdings: UserHolding[] }> {
+  async getUserHoldings(address: string): Promise<{ holdings: UserHolding[] } | null> {
     return this.fetch(`/api/user/${address.toLowerCase()}/holdings`);
   }
 
   async getUserActivity(address: string, params?: {
     limit?: number;
     offset?: number;
-  }): Promise<{ purchases: ActivityPurchase[]; total: number }> {
+  }): Promise<{ purchases: ActivityPurchase[]; total: number } | null> {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
@@ -88,15 +92,15 @@ class APIClient {
     );
   }
 
-  async getGlobalStats(): Promise<GlobalStats> {
+  async getGlobalStats(): Promise<GlobalStats | null> {
     return this.fetch('/api/stats');
   }
 
-  async getGlobalActivity(limit = 10): Promise<{ events: GlobalActivityEvent[] }> {
+  async getGlobalActivity(limit = 10): Promise<{ events: GlobalActivityEvent[] } | null> {
     return this.fetch(`/api/activity?limit=${limit}`);
   }
 
-  async getPriceHistory(tokenAddress: string): Promise<{ history: import('@/types').PricePoint[] }> {
+  async getPriceHistory(tokenAddress: string): Promise<{ history: import('@/types').PricePoint[] } | null> {
     return this.fetch(`/api/launches/${tokenAddress.toLowerCase()}/price-history`);
   }
 
@@ -104,7 +108,7 @@ class APIClient {
     limit?: number;
     offset?: number;
     sortBy?: 'newest' | 'market_cap';
-  }): Promise<{ launches: NftLaunchSummary[]; total: number }> {
+  }): Promise<{ launches: NftLaunchSummary[]; total: number } | null> {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
@@ -116,7 +120,7 @@ class APIClient {
   async getComments(tokenAddress: string, params?: {
     limit?: number;
     offset?: number;
-  }): Promise<{ comments: Comment[]; total: number }> {
+  }): Promise<{ comments: Comment[]; total: number } | null> {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());
@@ -126,22 +130,22 @@ class APIClient {
     );
   }
 
-  async postComment(tokenAddress: string, author: string, body: string): Promise<Comment> {
+  async postComment(tokenAddress: string, author: string, body: string): Promise<Comment | null> {
     return this.fetch(`/api/launches/${tokenAddress.toLowerCase()}/comments`, {
       method: 'POST',
       body: JSON.stringify({ author, body }),
     });
   }
 
-  async getCandles(tokenAddress: string, interval: string): Promise<{ candles: Candle[]; interval: string }> {
+  async getCandles(tokenAddress: string, interval: string): Promise<{ candles: Candle[]; interval: string } | null> {
     return this.fetch(`/api/launches/${tokenAddress.toLowerCase()}/chart?interval=${encodeURIComponent(interval)}`);
   }
 
-  async searchLaunches(q: string): Promise<{ launches: Launch[] }> {
+  async searchLaunches(q: string): Promise<{ launches: Launch[] } | null> {
     return this.fetch(`/api/launches/search?q=${encodeURIComponent(q)}`);
   }
 
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
+  async healthCheck(): Promise<{ status: string; timestamp: string } | null> {
     return this.fetch('/health');
   }
 }

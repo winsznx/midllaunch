@@ -93,7 +93,7 @@ export function useSearch(q: string) {
   });
 }
 
-export function useCandles(tokenAddress: string | undefined, interval: string): ReturnType<typeof useQuery<{ candles: Candle[]; interval: string }>> {
+export function useCandles(tokenAddress: string | undefined, interval: string): ReturnType<typeof useQuery<{ candles: Candle[]; interval: string } | null>> {
   return useQuery({
     queryKey: ['candles', tokenAddress, interval],
     queryFn: () => apiClient.getCandles(tokenAddress!, interval),
