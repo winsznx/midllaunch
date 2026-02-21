@@ -454,6 +454,9 @@ export default function NftCollectionPage({
             data,
             value: totalCost,
           },
+          deposit: {
+            satoshis: Number(totalCost / BigInt(10_000_000_000)),
+          },
         },
         from: paymentAccount.address,
         reset: true,
@@ -511,6 +514,9 @@ export default function NftCollectionPage({
             to: NFT_MARKETPLACE_ADDRESS,
             data,
             value: listing.priceSats,
+          },
+          deposit: {
+            satoshis: Number(listing.priceSats / BigInt(10_000_000_000)),
           },
         },
         from: paymentAccount.address,
