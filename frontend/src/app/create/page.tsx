@@ -129,10 +129,11 @@ export default function CreateLaunchPage() {
     try {
       let metadataCID: string | undefined;
 
+      let imageCID: string | undefined;
       if (imageFile) {
         setStep('uploading');
         setTxActiveStep(0);
-        const imageCID = await uploadImageToIPFS(imageFile);
+        imageCID = await uploadImageToIPFS(imageFile);
 
         setTxActiveStep(1);
         metadataCID = await uploadMetadataToIPFS({
@@ -194,6 +195,7 @@ export default function CreateLaunchPage() {
             body: JSON.stringify({
               btcTxId: fbtResult.tx.id,
               metadataCID,
+              ...(imageCID ? { imageCID } : {}),
               name: formData.name,
               symbol: formData.symbol,
             }),

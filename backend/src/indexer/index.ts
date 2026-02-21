@@ -211,7 +211,10 @@ class MidlLaunchIndexer {
           blockNumber: BigInt(log.blockNumber),
           txHash: log.transactionHash || '',
           timestamp: new Date(block.timestamp * 1000),
-          ...(pendingMeta ? { metadataUri: `ipfs://${pendingMeta.metadataCID}` } : {}),
+          ...(pendingMeta ? {
+            metadataUri: `ipfs://${pendingMeta.metadataCID}`,
+            ...(pendingMeta.imageCID ? { imageUrl: `https://gateway.pinata.cloud/ipfs/${pendingMeta.imageCID}` } : {}),
+          } : {}),
         }
       });
 
