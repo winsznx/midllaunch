@@ -198,6 +198,10 @@ export default function CreateLaunchPage() {
               ...(imageCID ? { imageCID } : {}),
               name: formData.name,
               symbol: formData.symbol,
+              ...(formData.description ? { description: formData.description } : {}),
+              ...(formData.twitter ? { twitterUrl: `https://x.com/${formData.twitter.replace(/^@/, '')}` } : {}),
+              ...(formData.telegram ? { telegramUrl: `https://t.me/${formData.telegram.replace(/^@/, '')}` } : {}),
+              ...(formData.website ? { websiteUrl: `https://${formData.website.replace(/^https?:\/\//, '')}` } : {}),
             }),
           });
         } catch {

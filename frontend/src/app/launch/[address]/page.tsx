@@ -729,16 +729,16 @@ export default function LaunchDetailPage() {
   const purchases = purchasesData?.purchases ?? [];
 
   return (
-    <div className="container mx-auto px-4 py-10">
-      <Link href="/launches" className="text-xs font-medium hover:underline inline-block mb-6"
+    <div className="container mx-auto px-4 py-6 lg:py-10">
+      <Link href="/launches" className="text-xs font-medium hover:underline inline-block mb-5"
         style={{ color: 'var(--orange-500)' }}>
         ← All Launches
       </Link>
 
       {/* Header */}
-      <div className="flex items-start gap-5 mb-8">
+      <div className="flex items-start gap-4 mb-6 lg:mb-8">
         <div
-          className="w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden"
+          className="relative w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden"
           style={{
             background: imageUrl ? 'transparent' : `radial-gradient(ellipse, hsl(${Math.abs(launch.name.charCodeAt(0) * 5) % 360},60%,35%), hsl(${Math.abs(launch.name.charCodeAt(1) * 7) % 360},50%,15%))`,
           }}
@@ -806,7 +806,7 @@ export default function LaunchDetailPage() {
             ];
             return (
               <div
-                className="grid gap-px grid-cols-2 sm:grid-cols-5 rounded-xl overflow-hidden"
+                className="grid gap-px grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 rounded-xl overflow-hidden"
                 style={{ background: 'var(--bg-border)' }}
               >
                 {stats.map(({ label, value, accent }) => (
@@ -997,7 +997,7 @@ export default function LaunchDetailPage() {
         </div>
 
         {/* Trade sidebar */}
-        <div className="sticky top-20 order-1 lg:order-2 space-y-3">
+        <div className="lg:sticky lg:top-20 order-1 lg:order-2 space-y-3">
           {progress >= 100 ? (
             <FullySubscribedCard
               launch={launch}
