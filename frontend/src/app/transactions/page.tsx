@@ -9,12 +9,12 @@ import Link from 'next/link';
 type TxState = 'SIGNED' | 'BTC_INCLUDED' | 'MIDL_EXECUTED' | 'FINALIZED' | 'FAILED' | 'REFUNDED';
 
 const TX_STATES: { state: TxState; label: string; color: string; bg: string }[] = [
-  { state: 'SIGNED',       label: 'Signed',      color: '#eab308',          bg: 'rgba(234,179,8,0.1)'    },
-  { state: 'BTC_INCLUDED', label: 'BTC Conf.',   color: 'var(--orange-500)', bg: 'var(--orange-glow)'    },
-  { state: 'MIDL_EXECUTED',label: 'Midl Exec.',  color: 'var(--orange-500)', bg: 'var(--orange-glow)'    },
-  { state: 'FINALIZED',    label: 'Finalized',   color: 'var(--green-500)',  bg: 'rgba(34,197,94,0.1)'   },
-  { state: 'FAILED',       label: 'Failed',      color: 'var(--red-500)',    bg: 'rgba(239,68,68,0.1)'   },
-  { state: 'REFUNDED',     label: 'Refunded',    color: 'var(--text-tertiary)', bg: 'var(--bg-elevated)' },
+  { state: 'SIGNED', label: 'Signed', color: '#eab308', bg: 'rgba(234,179,8,0.1)' },
+  { state: 'BTC_INCLUDED', label: 'BTC Conf.', color: 'var(--orange-500)', bg: 'var(--orange-glow)' },
+  { state: 'MIDL_EXECUTED', label: 'Midl Exec.', color: 'var(--orange-500)', bg: 'var(--orange-glow)' },
+  { state: 'FINALIZED', label: 'Finalized', color: 'var(--green-500)', bg: 'rgba(34,197,94,0.1)' },
+  { state: 'FAILED', label: 'Failed', color: 'var(--red-500)', bg: 'rgba(239,68,68,0.1)' },
+  { state: 'REFUNDED', label: 'Refunded', color: 'var(--text-tertiary)', bg: 'var(--bg-elevated)' },
 ];
 
 function stateStyle(state: string) {
@@ -22,10 +22,10 @@ function stateStyle(state: string) {
 }
 
 const LIFECYCLE_STEPS: { state: TxState; label: string; desc: string }[] = [
-  { state: 'SIGNED',        label: '1. Signed',         desc: 'BTC transaction signed by wallet'       },
-  { state: 'BTC_INCLUDED',  label: '2. BTC Confirmed',  desc: 'Included in a Bitcoin block'            },
-  { state: 'MIDL_EXECUTED', label: '3. Midl Executed',  desc: 'EVM transaction executed on Midl'       },
-  { state: 'FINALIZED',     label: '4. Finalized',      desc: 'Settlement complete and irreversible'   },
+  { state: 'SIGNED', label: '1. Signed', desc: 'BTC transaction signed by wallet' },
+  { state: 'BTC_INCLUDED', label: '2. BTC Confirmed', desc: 'Included in a Bitcoin block' },
+  { state: 'MIDL_EXECUTED', label: '3. Midl Executed', desc: 'EVM transaction executed on Midl' },
+  { state: 'FINALIZED', label: '4. Finalized', desc: 'Settlement complete and irreversible' },
 ];
 
 export default function TransactionsPage() {
