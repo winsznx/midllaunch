@@ -193,6 +193,10 @@ model PendingMetadata {
   symbol      String
   metadataCID String   // ipfs://Qm... or just the CID
   imageCID    String?  // CID of the token image
+  description String?  @db.Text
+  twitterUrl  String?  @db.Text
+  telegramUrl String?  @db.Text
+  websiteUrl  String?  @db.Text
   applied     Boolean  @default(false)
   createdAt   DateTime @default(now())
 
