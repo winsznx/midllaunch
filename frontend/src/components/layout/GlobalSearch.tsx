@@ -158,7 +158,7 @@ export function GlobalSearch() {
             </div>
           ) : (
             results.map((launch, i) => {
-              const imageUrl = launch.metadataUri ? ipfsUriToHttp(launch.metadataUri) : null;
+              const imageUrl = launch.imageUrl || (launch.metadataUri ? ipfsUriToHttp(launch.metadataUri) : null);
               return (
                 <button
                   key={launch.tokenAddress}

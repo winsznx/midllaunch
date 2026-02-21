@@ -73,8 +73,8 @@ export function TokenCard({ launch, index = 0 }: TokenCardProps) {
   const isGraduated = launch.status === 'FINALIZED' || progress >= 100;
   const live = isRecentlyActive(launch);
 
-  const imageUrl = !imgError && launch.metadataUri
-    ? ipfsUriToHttp(launch.metadataUri)
+  const imageUrl = !imgError && (launch.imageUrl || launch.metadataUri)
+    ? (launch.imageUrl || ipfsUriToHttp(launch.metadataUri!))
     : null;
 
   return (

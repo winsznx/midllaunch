@@ -724,9 +724,7 @@ export default function LaunchDetailPage() {
     ? Math.min(Number(BigInt(launch.currentSupply) * BigInt(10000) / BigInt(launch.supplyCap)) / 100, 100)
     : 0;
 
-  const imageUrl = launch.metadataUri
-    ? ipfsUriToHttp(launch.metadataUri)
-    : null;
+  const imageUrl = launch.imageUrl || (launch.metadataUri ? ipfsUriToHttp(launch.metadataUri) : null);
 
   const purchases = purchasesData?.purchases ?? [];
 

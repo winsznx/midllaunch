@@ -90,9 +90,13 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
     return () => clearTimeout(estimateTimer.current);
   }, [btcAmount, launch, publicClient]);
 
+  const remainingSupply = BigInt(launch.supplyCap) - BigInt(launch.currentSupply || '0');
+  const exceedsCap = estimatedTokens > BigInt(0) && estimatedTokens > remainingSupply;
+
   const handleBuy = async () => {
     if (!paymentAccount) { setBuyError('Connect your wallet first'); return; }
     if (!btcAmount || parseFloat(btcAmount) <= 0) { setBuyError('Enter a BTC amount'); return; }
+    if (exceedsCap) { setBuyError(`Amount exceeds remaining supply (${formatTokenAmount(remainingSupply.toString())} ${launch.symbol} left)`); return; }
 
     setIsBuying(true);
     setBuyError(null);
@@ -221,10 +225,16 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
           <div className="space-y-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
             <div className="flex justify-between">
               <span>You receive</span>
-              <span className="font-mono font-medium" style={{ color: 'var(--text-primary)' }}>
+              <span className="font-mono font-medium" style={{ color: exceedsCap ? 'var(--red-500)' : 'var(--text-primary)' }}>
                 ~{formatTokenAmount((estimatedTokens).toString())} {launch.symbol}
               </span>
             </div>
+            {exceedsCap && (
+              <div className="flex justify-between" style={{ color: 'var(--red-500)' }}>
+                <span>Remaining supply</span>
+                <span className="font-mono">{formatTokenAmount(remainingSupply.toString())} {launch.symbol}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Min received</span>
               <span className="font-mono">~{minReceived.toFixed(2)} {launch.symbol}</span>
@@ -289,7 +299,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
         {/* Buy button */}
         <button
           onClick={handleBuy}
-          disabled={isBuying || !btcAmount || parseFloat(btcAmount) <= 0}
+          disabled={isBuying || !btcAmount || parseFloat(btcAmount) <= 0 || exceedsCap}
           className="btn-primary w-full py-3 font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isBuying ? (
