@@ -55,6 +55,39 @@ export interface ActivityPurchase extends Purchase {
   };
 }
 
+export interface ActivityLaunch {
+  tokenAddress: string;
+  name: string;
+  symbol: string;
+  intentId: string | null;
+  txHash: string;
+  timestamp: Date;
+  imageUrl: string | null;
+}
+
+export interface ActivityNftLaunch {
+  contractAddress: string;
+  name: string;
+  symbol: string;
+  createdAt: Date;
+  imageUrl: string | null;
+}
+
+export interface ActivityNftMint {
+  id: string;
+  tokenId: number;
+  pricePaidSats: string;
+  txHash: string;
+  btcTxHash: string | null;
+  createdAt: Date;
+  launch: {
+    contractAddress: string;
+    name: string;
+    symbol: string;
+    imageUrl: string | null;
+  };
+}
+
 export interface UserHolding {
   tokenAddress: string;
   tokenName: string;

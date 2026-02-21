@@ -2,6 +2,9 @@ import type {
   Launch,
   Purchase,
   ActivityPurchase,
+  ActivityLaunch,
+  ActivityNftLaunch,
+  ActivityNftMint,
   UserHolding,
   GlobalStats,
   GlobalActivityEvent,
@@ -81,7 +84,7 @@ class APIClient {
   async getUserActivity(address: string, params?: {
     limit?: number;
     offset?: number;
-  }): Promise<{ purchases: ActivityPurchase[]; total: number } | null> {
+  }): Promise<{ purchases: ActivityPurchase[]; launches: ActivityLaunch[]; nftLaunches: ActivityNftLaunch[]; nftMints: ActivityNftMint[]; total: number } | null> {
     const searchParams = new URLSearchParams();
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.offset) searchParams.set('offset', params.offset.toString());

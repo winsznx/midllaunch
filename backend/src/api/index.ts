@@ -624,30 +624,58 @@ app.get('/api/user/:address/activity', async (req, res) => {
     const { address } = req.params;
     const { limit = '20', offset = '0' } = req.query;
 
-    const purchases = await prisma.purchase.findMany({
-      where: { buyer: address.toLowerCase() },
-      orderBy: { timestamp: 'desc' },
-      take: parseIntParam(limit, 20),
-      skip: parseIntParam(offset, 0),
-      include: {
-        launch: {
-          select: {
-            name: true,
-            symbol: true,
-            tokenAddress: true
+    const addr = address.toLowerCase();
+
+    const [purchases, launches, nftLaunches, nftMints] = await Promise.all([
+      prisma.purchase.findMany({
+        where: { buyer: addr },
+        orderBy: { timestamp: 'desc' },
+        take: parseIntParam(limit, 50),
+        skip: parseIntParam(offset, 0),
+        include: {
+          launch: {
+            select: { name: true, symbol: true, tokenAddress: true }
           }
         }
-      }
-    });
+      }),
+      prisma.launch.findMany({
+        where: { creator: addr },
+        orderBy: { timestamp: 'desc' },
+        select: {
+          tokenAddress: true,
+          name: true,
+          symbol: true,
+          intentId: true,
+          txHash: true,
+          timestamp: true,
+          imageUrl: true,
+        }
+      }),
+      prisma.nftLaunch.findMany({
+        where: { creatorAddress: addr },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          contractAddress: true,
+          name: true,
+          symbol: true,
+          createdAt: true,
+          imageUrl: true,
+        }
+      }),
+      prisma.nftMint.findMany({
+        where: { buyerAddress: addr },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          launch: {
+            select: { contractAddress: true, name: true, symbol: true, imageUrl: true }
+          }
+        }
+      }),
+    ]);
 
-    const total = await prisma.purchase.count({
-      where: { buyer: address.toLowerCase() }
-    });
+    const total = await prisma.purchase.count({ where: { buyer: addr } });
 
-    res.json({
-      purchases,
-      total
-    });
+    res.json({ purchases, launches, nftLaunches, nftMints, total });
   } catch (error) {
     console.error('[API] Error fetching user activity:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -726,12 +754,16 @@ app.get('/api/launches/:tokenAddress/comments', async (req, res) => {
 // POST /api/pending-metadata - Store IPFS metadata CID before tx confirms
 app.post('/api/pending-metadata', async (req, res) => {
   try {
-    const { btcTxId, metadataCID, imageCID, name, symbol } = req.body as {
+    const { btcTxId, metadataCID, imageCID, name, symbol, description, twitterUrl, telegramUrl, websiteUrl } = req.body as {
       btcTxId?: string;
       metadataCID?: string;
       imageCID?: string;
       name?: string;
       symbol?: string;
+      description?: string;
+      twitterUrl?: string;
+      telegramUrl?: string;
+      websiteUrl?: string;
     };
 
     if (!btcTxId || !metadataCID || !name || !symbol) {
@@ -739,7 +771,14 @@ app.post('/api/pending-metadata', async (req, res) => {
     }
 
     await prisma.pendingMetadata.create({
-      data: { btcTxId, metadataCID, ...(imageCID ? { imageCID } : {}), name, symbol },
+      data: {
+        btcTxId, metadataCID, name, symbol,
+        ...(imageCID ? { imageCID } : {}),
+        ...(description ? { description } : {}),
+        ...(twitterUrl ? { twitterUrl } : {}),
+        ...(telegramUrl ? { telegramUrl } : {}),
+        ...(websiteUrl ? { websiteUrl } : {}),
+      },
     });
 
     res.status(201).json({ ok: true });

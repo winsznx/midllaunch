@@ -214,6 +214,10 @@ class MidlLaunchIndexer {
           ...(pendingMeta ? {
             metadataUri: `ipfs://${pendingMeta.metadataCID}`,
             ...(pendingMeta.imageCID ? { imageUrl: `https://gateway.pinata.cloud/ipfs/${pendingMeta.imageCID}` } : {}),
+            ...(pendingMeta.description ? { description: pendingMeta.description } : {}),
+            ...(pendingMeta.twitterUrl ? { twitterUrl: pendingMeta.twitterUrl } : {}),
+            ...(pendingMeta.telegramUrl ? { telegramUrl: pendingMeta.telegramUrl } : {}),
+            ...(pendingMeta.websiteUrl ? { websiteUrl: pendingMeta.websiteUrl } : {}),
           } : {}),
         }
       });
