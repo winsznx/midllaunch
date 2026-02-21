@@ -85,7 +85,6 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { sendBTCTransactionsAsync } = useSendBTCTransactions();
-  const { waitForTransactionAsync } = useWaitForTransaction();
 
   const [priceSats, setPriceSats] = useState('');
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
