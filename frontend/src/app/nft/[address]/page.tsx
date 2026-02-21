@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, use } from 'react';
-import { useAccounts } from '@midl/react';
+import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import {
   useAddTxIntention,
@@ -85,6 +85,7 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { sendBTCTransactionsAsync } = useSendBTCTransactions();
+  const { waitForTransactionAsync } = useWaitForTransaction();
 
   const [priceSats, setPriceSats] = useState('');
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
@@ -295,6 +296,7 @@ export default function NftCollectionPage({
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { sendBTCTransactionsAsync } = useSendBTCTransactions();
+  const { waitForTransactionAsync } = useWaitForTransaction();
 
   // ── API data ──
   const [collection, setCollection] = useState<NftLaunchSummary | null>(null);
@@ -471,6 +473,8 @@ export default function NftCollectionPage({
         btcTransaction: fbt.tx.hex,
       });
       setMintStep(4);
+
+      await waitForTransactionAsync({ txId: fbt.tx.id });
       refetchBalance();
     } catch (err) {
       setMintError(err instanceof Error ? err.message : 'Mint failed');
@@ -527,6 +531,8 @@ export default function NftCollectionPage({
         btcTransaction: fbt.tx.hex,
       });
       setBuyStep(4);
+
+      await waitForTransactionAsync({ txId: fbt.tx.id });
       refetchBalance();
     } catch (err) {
       setBuyError(err instanceof Error ? err.message : 'Purchase failed');
@@ -582,6 +588,8 @@ export default function NftCollectionPage({
         btcTransaction: fbt.tx.hex,
       });
       setDelistStep(4);
+
+      await waitForTransactionAsync({ txId: fbt.tx.id });
     } catch (err) {
       setDelistError(err instanceof Error ? err.message : 'Delist failed');
     } finally {
