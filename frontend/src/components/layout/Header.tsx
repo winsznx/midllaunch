@@ -17,12 +17,12 @@ function formatAddress(address: string): string {
 }
 
 const NAV_LINKS = [
-  { href: '/launches',     label: 'Browse'       },
-  { href: '/create',       label: 'Launch Token' },
-  { href: '/launch-nft',   label: 'Launch NFT'   },
-  { href: '/portfolio',    label: 'Portfolio'    },
-  { href: '/transactions', label: 'Txns'         },
-  { href: '/bot-demo',     label: 'Bot'          },
+  { href: '/launches', label: 'Browse' },
+  { href: '/create', label: 'Launch Token' },
+  { href: '/launch-nft', label: 'Launch NFT' },
+  { href: '/portfolio', label: 'Portfolio' },
+  { href: '/transactions', label: 'Txns' },
+  { href: '/bot-demo', label: 'Bot' },
 ];
 
 export function Header() {
@@ -130,6 +130,7 @@ export function Header() {
 
         {/* Mobile hamburger */}
         <MobileMenu />
+
 
         {/* Right side */}
         <div className="hidden md:flex items-center gap-3">

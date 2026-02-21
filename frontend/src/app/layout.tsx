@@ -10,6 +10,7 @@ import { WagmiMidlProvider } from "@midl/executor-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { MobileNav } from "@/components/layout/MobileNav";
+
 import { PageTransition } from "@/components/layout/PageTransition";
 import { useWebSocket } from "@/lib/hooks/useWebSocket";
 import { midlConfig } from "@/lib/midl/config";
@@ -47,34 +48,34 @@ export default function RootLayout({
       <body className="antialiased">
         <MidlProvider config={midlConfig}>
           <SatoshiKitProvider>
-          <QueryClientProvider client={queryClient}>
-            <WagmiMidlProvider>
-              <WebSocketProvider>
-                <a href="#main-content" className="skip-link">Skip to content</a>
-                <Header />
-                <main id="main-content" className="min-h-screen pb-16 md:pb-0">
-                  <PageTransition>{children}</PageTransition>
-                </main>
-                <Footer />
-                <MobileNav />
-                <Toaster
-                  position="bottom-right"
-                  toastOptions={{
-                    style: {
-                      background: 'hsl(var(--card))',
-                      color: 'hsl(var(--foreground))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
-                    },
-                    success: { iconTheme: { primary: '#f97316', secondary: '#fff' } },
-                    error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
-                  }}
-                />
-              <Analytics />
-              </WebSocketProvider>
-            </WagmiMidlProvider>
-          </QueryClientProvider>
+            <QueryClientProvider client={queryClient}>
+              <WagmiMidlProvider>
+                <WebSocketProvider>
+                  <a href="#main-content" className="skip-link">Skip to content</a>
+                  <Header />
+                  <main id="main-content" className="min-h-screen pb-16 md:pb-0">
+                    <PageTransition>{children}</PageTransition>
+                  </main>
+                  <Footer />
+                  <MobileNav />
+                  <Toaster
+                    position="bottom-right"
+                    toastOptions={{
+                      style: {
+                        background: 'hsl(var(--card))',
+                        color: 'hsl(var(--foreground))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '0.5rem',
+                        fontSize: '0.875rem',
+                      },
+                      success: { iconTheme: { primary: '#f97316', secondary: '#fff' } },
+                      error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
+                    }}
+                  />
+                  <Analytics />
+                </WebSocketProvider>
+              </WagmiMidlProvider>
+            </QueryClientProvider>
           </SatoshiKitProvider>
         </MidlProvider>
       </body>

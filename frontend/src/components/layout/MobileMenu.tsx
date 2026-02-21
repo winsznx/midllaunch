@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useConnect, useAccounts, useDisconnect, useBalance } from '@midl/react';
@@ -75,7 +76,7 @@ export function MobileMenu() {
         </svg>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className="fixed inset-0 z-[100] md:hidden">
           {/* Solid backdrop */}
           <div
@@ -282,7 +283,8 @@ export function MobileMenu() {
               Built on Midl Network
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
