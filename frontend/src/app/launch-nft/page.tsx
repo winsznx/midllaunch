@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useCallback } from 'react';
-import { useAccounts } from '@midl/react';
+import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
 import { encodeFunctionData } from 'viem';
@@ -64,6 +64,7 @@ export default function LaunchNftPage() {
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { sendBTCTransactionsAsync } = useSendBTCTransactions();
+  const { waitForTransactionAsync } = useWaitForTransaction();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -190,6 +191,8 @@ export default function LaunchNftPage() {
         btcTransaction: fbtResult.tx.hex,
       });
       setDeployStage(6);
+
+      await waitForTransactionAsync({ txId: fbtResult.tx.id });
       toast.success('NFT Collection deployed!');
 
       if (metadataCID) {
