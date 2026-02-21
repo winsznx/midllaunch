@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { useAccounts } from '@midl/react';
+import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
 import { usePublicClient } from 'wagmi';
@@ -41,6 +41,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { sendBTCTransactionsAsync } = useSendBTCTransactions();
+  const { waitForTransactionAsync } = useWaitForTransaction();
 
   const [btcAmount, setBtcAmount] = useState(defaultBtcAmount ?? '');
   const [slippage, setSlippage] = useState('1');
@@ -134,8 +135,9 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
         serializedTransactions: [signedIntention],
         btcTransaction: fbtResult.tx.hex,
       });
-      setActiveStep(4); // all 4 done
+      setActiveStep(4);
 
+      await waitForTransactionAsync({ txId: fbtResult.tx.id });
       onSuccess?.(fbtResult.tx.id);
       setBtcAmount('');
     } catch (err) {
