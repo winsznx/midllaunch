@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { useAccounts } from '@midl/react';
+import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
 import { usePublicClient, useReadContract } from 'wagmi';
@@ -40,6 +40,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { sendBTCTransactionsAsync } = useSendBTCTransactions();
+  const { waitForTransactionAsync } = useWaitForTransaction();
 
   // Token balance of the connected wallet
   const { data: rawBalance } = useReadContract({
@@ -177,6 +178,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
       });
       setActiveStep(4);
 
+      await waitForTransactionAsync({ txId: fbtResult.tx.id });
       onSuccess?.(fbtResult.tx.id);
       setTokenAmount('');
       setPctSelected(null);
