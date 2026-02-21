@@ -159,6 +159,9 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
             data,
             value: BigInt(0),
           },
+          withdraw: {
+            satoshis: Number(estimatedBtc),
+          },
         },
         from: paymentAccount.address,
         reset: true,

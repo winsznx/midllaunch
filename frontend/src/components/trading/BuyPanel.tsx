@@ -121,6 +121,9 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
             data,
             value: btcToWei(btcAmount),
           },
+          deposit: {
+            satoshis: Number(btcToSatoshis(btcAmount)),
+          },
         },
         from: paymentAccount.address,
         reset: true,
