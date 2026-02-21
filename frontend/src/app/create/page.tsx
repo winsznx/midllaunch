@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { useAccounts } from '@midl/react';
+import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
 import { encodeFunctionData } from 'viem';
@@ -75,6 +75,7 @@ export default function CreateLaunchPage() {
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { sendBTCTransactionsAsync } = useSendBTCTransactions();
+  const { waitForTransactionAsync } = useWaitForTransaction();
 
   const handleFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return;
@@ -206,7 +207,9 @@ export default function CreateLaunchPage() {
         serializedTransactions: [signedIntention],
         btcTransaction: fbtResult.tx.hex,
       });
-      setTxActiveStep(6); // all done
+      setTxActiveStep(6);
+
+      await waitForTransactionAsync({ txId: fbtResult.tx.id });
 
       if (devBuyEnabled && parseFloat(devBuyAmount) > 0) {
         sessionStorage.setItem('pendingDevBuy', JSON.stringify({
