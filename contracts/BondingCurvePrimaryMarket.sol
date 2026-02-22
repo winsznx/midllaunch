@@ -91,7 +91,9 @@ contract BondingCurvePrimaryMarket is ReentrancyGuard {
      * @param minTokensOut Minimum tokens to receive (slippage protection, in base units)
      */
     function buy(bytes32 intentId, uint256 minTokensOut) external payable nonReentrant {
-        uint256 btcAmountSats = msg.value;
+        // msg.value arrives in wei (18 decimals) on the Midl EVM.
+        // Convert to satoshis (8 decimals) for the bonding curve formula.
+        uint256 btcAmountSats = msg.value / 1e10;
         require(btcAmountSats > 0, "BondingCurve: must send BTC");
 
         // Get current supply in base units
@@ -224,8 +226,9 @@ contract BondingCurvePrimaryMarket is ReentrancyGuard {
         // Update net reserve accounting
         totalBTCDepositedSats -= btcToReturn;
 
-        // Transfer vBTC to seller — Midl routes to seller's Bitcoin address
-        (bool success, ) = payable(msg.sender).call{value: btcToReturn}("");
+        // Transfer vBTC to seller — convert sats back to wei for the EVM transfer.
+        // Midl routes the wei credit to seller's Bitcoin address.
+        (bool success, ) = payable(msg.sender).call{value: btcToReturn * 1e10}("");
         require(success, "BondingCurve: BTC transfer failed");
 
         emit TokensSold(
