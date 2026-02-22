@@ -141,6 +141,13 @@ export function Footer() {
                   {label}
                 </Link>
               ))}
+              <Link
+                href="/api-reference"
+                className="block text-xs transition-colors hover:underline"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                API Reference
+              </Link>
             </div>
           </div>
         </div>
