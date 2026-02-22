@@ -140,6 +140,13 @@ class APIClient {
     });
   }
 
+  async postPendingPurchase(btcAddress: string, launchAddr: string, btcAmount: string): Promise<void> {
+    await this.fetch('/api/pending-purchase', {
+      method: 'POST',
+      body: JSON.stringify({ btcAddress, launchAddr, btcAmount }),
+    });
+  }
+
   async getCandles(tokenAddress: string, interval: string): Promise<{ candles: Candle[]; interval: string } | null> {
     return this.fetch(`/api/launches/${tokenAddress.toLowerCase()}/chart?interval=${encodeURIComponent(interval)}`);
   }

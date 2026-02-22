@@ -9,6 +9,7 @@ import { BONDING_CURVE_ABI } from '@/lib/contracts/config';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import type { Launch } from '@/types';
 import { TxProgress, type TxStep } from '@/components/ui/TxProgress';
+import { apiClient } from '@/lib/api/client';
 
 interface SellPanelProps {
   launch: Launch;
@@ -191,6 +192,12 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
 
       const signedTx = txIntentionsRef.current[0].signedEvmTransaction as `0x${string}`;
       setEvmTxHash(keccak256(signedTx));
+
+      try {
+        await apiClient.postPendingPurchase(paymentAccount.address, launch.curveAddress, Number(estimatedBtc).toString());
+      } catch (err) {
+        console.warn('Failed to post pending purchase side-channel', err);
+      }
 
       await publicClient?.sendBTCTransactions({
         serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),

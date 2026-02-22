@@ -9,6 +9,7 @@ import { BONDING_CURVE_ABI, btcToWei, btcToSatoshis } from '@/lib/contracts/conf
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import type { Launch } from '@/types';
 import { TxProgress, type TxStep } from '@/components/ui/TxProgress';
+import { apiClient } from '@/lib/api/client';
 
 interface BuyPanelProps {
   launch: Launch;
@@ -166,6 +167,12 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
 
       const signedTx = txIntentionsRef.current[0].signedEvmTransaction as `0x${string}`;
       setEvmTxHash(keccak256(signedTx));
+
+      try {
+        await apiClient.postPendingPurchase(paymentAccount.address, launch.curveAddress, Number(btcToSatoshis(btcAmount)).toString());
+      } catch (err) {
+        console.warn('Failed to post pending purchase side-channel', err);
+      }
 
       await publicClient?.sendBTCTransactions({
         serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
