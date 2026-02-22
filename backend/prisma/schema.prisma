@@ -84,8 +84,8 @@ model Purchase {
   newPrice        String   // price after trade
 
   // Supply snapshot for OHLC candle construction
-  supplyBefore    BigInt?
-  supplyAfter     BigInt?
+  supplyBefore    String?
+  supplyAfter     String?
 
   // Blockchain data
   blockNumber     BigInt
