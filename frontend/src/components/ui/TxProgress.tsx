@@ -249,14 +249,35 @@ export function TxProgress({
           )}
 
           {/* Error */}
-          {error && (
-            <div
-              className="rounded-xl p-3 text-xs leading-relaxed"
-              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: 'var(--red-500)' }}
-            >
-              {error}
-            </div>
-          )}
+          {error && (() => {
+            // Extract human-readable "Details: ..." from verbose RPC error strings
+            const detailsMatch = error.match(/Details:\s*([\s\S]+?)(?:\s+Version:|$)/);
+            const friendlyError = detailsMatch ? detailsMatch[1].trim() : error;
+            const isVerboseRpc = error.includes('Request body:') || error.includes('RPC Request');
+            return (
+              <div
+                className="rounded-xl p-3 text-xs leading-relaxed space-y-1.5"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
+              >
+                <p className="font-semibold" style={{ color: 'var(--red-500)' }}>
+                  Transaction failed
+                </p>
+                <p className="break-words" style={{ color: 'var(--red-500)' }}>
+                  {friendlyError}
+                </p>
+                {isVerboseRpc && (
+                  <details className="mt-1">
+                    <summary className="cursor-pointer opacity-50 hover:opacity-80 select-none" style={{ color: 'var(--text-tertiary)' }}>
+                      Full error
+                    </summary>
+                    <p className="mt-1 break-all font-mono text-[10px] opacity-60" style={{ color: 'var(--text-tertiary)' }}>
+                      {error}
+                    </p>
+                  </details>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Action buttons */}
           {(allDone || error) && (
