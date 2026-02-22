@@ -24,6 +24,14 @@ function satoshisToDisplay(sats: bigint | string | number): string {
   return `${(Number(n) / 1e8).toFixed(5)} BTC`;
 }
 
+function formatMarketCap(sats: number): string {
+  if (sats === 0) return '—';
+  const btc = sats / 1e8;
+  if (btc >= 1) return `${btc.toFixed(2)} BTC`;
+  if (btc >= 0.001) return `${btc.toFixed(4)} BTC`;
+  return `${Math.round(sats).toLocaleString()} sats`;
+}
+
 function addressGradient(addr: string): string {
   const h = Array.from(addr).reduce((acc, c) => acc ^ c.charCodeAt(0), 0);
   const h2 = (h * 137) % 360;
@@ -36,8 +44,14 @@ export function NftCard({ launch }: { launch: NftLaunch }) {
     : 0;
   const isSoldOut = launch.isFinalized || launch.totalMinted >= launch.totalSupply;
 
+  const marketCapSats = Number(launch.mintPrice.toString()) * launch.totalMinted;
+
   return (
-    <Link href={`/nft/${launch.contractAddress}`} className="token-card block">
+    <Link
+      href={`/nft/${launch.contractAddress}`}
+      className="token-card block transition-all duration-200 hover:-translate-y-0.5"
+      style={{ boxShadow: '4px 4px 0 rgba(0,0,0,0.8)' }}
+    >
       {/* Image area */}
       <div
         className="relative overflow-hidden"
@@ -100,9 +114,11 @@ export function NftCard({ launch }: { launch: NftLaunch }) {
 
         <ProgressBar value={launch.totalMinted} max={launch.totalSupply} />
 
-        <div className="flex justify-between text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          <span>{launch.totalMinted} minted</span>
-          <span>{mintedPct.toFixed(1)}%</span>
+        <div className="flex justify-between text-xs">
+          <span style={{ color: 'var(--text-tertiary)' }}>{launch.totalMinted} minted · {mintedPct.toFixed(1)}%</span>
+          <span style={{ color: 'var(--text-tertiary)' }}>
+            MCap <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{formatMarketCap(marketCapSats)}</span>
+          </span>
         </div>
       </div>
     </Link>
