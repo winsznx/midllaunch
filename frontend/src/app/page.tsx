@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useGlobalStats, useGlobalActivity } from '@/lib/hooks/useLaunches';
-import { LiveTicker } from '@/components/ui/LiveTicker';
 import { formatBTC } from '@/lib/wallet';
 
 export default function Home() {
@@ -13,7 +12,6 @@ export default function Home() {
 
   return (
     <div className="bg-background text-foreground transition-colors duration-200">
-      <LiveTicker />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 font-sans">
 
