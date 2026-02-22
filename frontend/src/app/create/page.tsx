@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
@@ -75,6 +75,8 @@ export default function CreateLaunchPage() {
 
   const publicClient = usePublicClient();
   const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
+  const txIntentionsRef = useRef(txIntentions);
+  useEffect(() => { txIntentionsRef.current = txIntentions; }, [txIntentions]);
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { waitForTransactionAsync } = useWaitForTransaction();
@@ -212,7 +214,7 @@ export default function CreateLaunchPage() {
       }
 
       await publicClient?.sendBTCTransactions({
-        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+        serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setTxActiveStep(6);
@@ -383,7 +385,7 @@ export default function CreateLaunchPage() {
                     <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-tertiary)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-tertiary)' }}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
                       <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                         Click or drag to upload · PNG, JPG, GIF · Max 10 MB
                       </span>
@@ -397,7 +399,7 @@ export default function CreateLaunchPage() {
                       className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs"
                       style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
                   )}
                 </div>

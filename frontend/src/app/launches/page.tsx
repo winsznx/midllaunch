@@ -21,9 +21,9 @@ type AssetType = 'tokens' | 'nfts';
 
 const TABS: { label: string; icon: React.ReactNode; sort: SortOption; status?: LaunchStatus }[] = [
   { label: 'Trending', icon: <Flame size={13} />, sort: 'trending' },
-  { label: 'New',      icon: <Sparkles size={13} />, sort: 'newest' },
-  { label: 'Price ↑',  icon: <TrendingUp size={13} />, sort: 'price_high' },
-  { label: 'Price ↓',  icon: <TrendingDown size={13} />, sort: 'price_low' },
+  { label: 'New', icon: <Sparkles size={13} />, sort: 'newest' },
+  { label: 'Price ↑', icon: <TrendingUp size={13} />, sort: 'price_high' },
+  { label: 'Price ↓', icon: <TrendingDown size={13} />, sort: 'price_low' },
   { label: 'Near Cap', icon: <Trophy size={13} />, sort: 'near_cap', status: 'ACTIVE' },
 ];
 
@@ -109,14 +109,14 @@ function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
 
   const marketCapSats = slide.type === 'token'
     ? (slide.item.currentPrice && slide.item.currentSupply
-        ? parseFloat(slide.item.currentPrice) * (Number(slide.item.currentSupply) / 1e18)
-        : 0)
+      ? parseFloat(slide.item.currentPrice) * (Number(slide.item.currentSupply) / 1e18)
+      : 0)
     : Number(slide.item.mintPrice) * slide.item.totalMinted;
 
   const progress = slide.type === 'token'
     ? (slide.item.currentSupply && slide.item.supplyCap
-        ? Math.min(Number(BigInt(slide.item.currentSupply) * BigInt(10000) / BigInt(slide.item.supplyCap)) / 100, 100)
-        : 0)
+      ? Math.min(Number(BigInt(slide.item.currentSupply) * BigInt(10000) / BigInt(slide.item.supplyCap)) / 100, 100)
+      : 0)
     : (slide.item.totalSupply > 0 ? Math.min(100, (slide.item.totalMinted / slide.item.totalSupply) * 100) : 0);
 
   const progressLabel = slide.type === 'token' ? 'Bonding curve' : 'Minted';
@@ -309,63 +309,195 @@ export default function LaunchesPage() {
     <div className="container mx-auto px-4 py-8">
 
       {/* ── Hero Section ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-10">
-        {/* Left: copy + CTAs */}
-        <div className="lg:col-span-3 flex flex-col justify-center">
-          <div
-            className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1 rounded-full mb-4 w-fit"
-            style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--orange-500)', border: '1px solid rgba(249,115,22,0.3)' }}
-          >
-            <Flame size={11} />
-            Bitcoin-Native Launchpad
-          </div>
-          <h1
-            className="font-display font-bold leading-tight mb-3"
-            style={{ fontSize: 'clamp(1.75rem,4vw,2.75rem)', color: 'var(--text-primary)' }}
-          >
-            {assetType === 'tokens' ? (
-              <>Issue tokens. Trade the curve.{' '}<span className="text-gradient">Stack sats.</span></>
-            ) : (
-              <>Deploy collections. Trade on-chain.{' '}<span className="text-gradient">Settle in BTC.</span></>
-            )}
-          </h1>
-          <p className="text-sm mb-6 max-w-md" style={{ color: 'var(--text-secondary)' }}>
-            {assetType === 'tokens'
-              ? 'Bitcoin-native token markets built on bonding curves. No order book. No AMM. Price determined by supply.'
-              : 'Fixed-price NFT collections deployed on Midl\u2019s Bitcoin execution layer. Mint on-chain, settle in BTC.'}
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={assetType === 'tokens' ? '/create' : '/launch-nft'}
-              className="btn btn-primary flex items-center gap-2 text-sm"
-            >
-              <Rocket size={14} />
-              {assetType === 'tokens' ? 'Launch Token' : 'Launch NFT'}
-            </Link>
-            <button
-              onClick={() => document.getElementById('browse-grid')?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:opacity-80"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--bg-border)' }}
-            >
-              Browse All
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
+      <div
+        className="relative rounded-2xl overflow-hidden mb-10"
+        style={{
+          background: 'linear-gradient(135deg, #0d0b08 0%, #130f0a 40%, #0e0c14 70%, #0b0d12 100%)',
+          border: '1px solid rgba(249,115,22,0.2)',
+          boxShadow: '0 0 0 1px rgba(255,255,255,0.04) inset, 0 4px 48px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Background: large orange orb left */}
+        <div className="absolute pointer-events-none" style={{
+          top: '-40%', left: '-10%',
+          width: '60%', height: '180%',
+          background: 'radial-gradient(ellipse, rgba(249,115,22,0.13) 0%, transparent 65%)',
+          filter: 'blur(32px)',
+        }} />
+        {/* Background: purple orb top-right */}
+        <div className="absolute pointer-events-none" style={{
+          top: '-30%', right: '5%',
+          width: '45%', height: '120%',
+          background: 'radial-gradient(ellipse, rgba(139,92,246,0.1) 0%, transparent 65%)',
+          filter: 'blur(40px)',
+        }} />
+        {/* Background: blue orb bottom-right */}
+        <div className="absolute pointer-events-none" style={{
+          bottom: '-20%', right: '20%',
+          width: '35%', height: '80%',
+          background: 'radial-gradient(ellipse, rgba(59,130,246,0.08) 0%, transparent 65%)',
+          filter: 'blur(36px)',
+        }} />
+        {/* Subtle grid overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }} />
 
-        {/* Right: carousel */}
-        <div className="lg:col-span-2">
-          {carouselSlides.length > 0
-            ? <HeroCarousel slides={carouselSlides} />
-            : (
+        {/* Inner padding */}
+        <div className="relative px-7 pt-7 pb-7 lg:px-10 lg:pt-9 lg:pb-9">
+
+          {/* Stats strip at top */}
+          <div className="flex items-center gap-4 mb-7 overflow-x-auto scrollbar-none">
+            {[
+              { label: 'Network', value: 'Midl L2', accent: true },
+              { label: 'Settlement', value: 'Bitcoin' },
+              { label: 'Curve type', value: 'Linear' },
+              { label: 'Order book', value: 'None' },
+              { label: 'Custody', value: 'Non-custodial' },
+            ].map(s => (
               <div
-                className="rounded-2xl h-52 flex items-center justify-center"
-                style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
+                key={s.label}
+                className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                style={{
+                  background: s.accent ? 'rgba(249,115,22,0.12)' : 'rgba(255,255,255,0.04)',
+                  border: s.accent ? '1px solid rgba(249,115,22,0.28)' : '1px solid rgba(255,255,255,0.07)',
+                }}
               >
-                <span className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading top performers…</span>
+                <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>{s.label}</span>
+                <span
+                  className="text-[11px] font-mono font-semibold"
+                  style={{ color: s.accent ? 'var(--orange-400)' : 'rgba(255,255,255,0.75)' }}
+                >
+                  {s.value}
+                </span>
               </div>
-            )
-          }
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-center">
+            {/* Left: copy + CTAs */}
+            <div className="lg:col-span-3 flex flex-col">
+              {/* Badge */}
+              <div
+                className="inline-flex items-center gap-2 text-[11px] font-semibold px-3 py-1 rounded-full mb-5 w-fit uppercase tracking-widest"
+                style={{
+                  background: 'rgba(249,115,22,0.15)',
+                  color: 'var(--orange-400)',
+                  border: '1px solid rgba(249,115,22,0.35)',
+                  letterSpacing: '0.1em',
+                }}
+              >
+                <Flame size={10} />
+                {assetType === 'tokens' ? 'Bitcoin-Native Token Launchpad' : 'Bitcoin-Native NFT Launchpad'}
+              </div>
+
+              {/* Headline */}
+              <h1
+                className="font-display font-bold leading-[1.05] mb-4"
+                style={{ fontSize: 'clamp(2rem,4.5vw,3.25rem)', color: '#f5f0e8' }}
+              >
+                {assetType === 'tokens' ? (
+                  <>
+                    Issue tokens.<br />
+                    Trade the curve.{' '}
+                    <span style={{
+                      background: 'linear-gradient(90deg, #f97316, #fb923c, #fbbf24)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}>
+                      Stack sats.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Deploy collections.<br />
+                    Trade on-chain.{' '}
+                    <span style={{
+                      background: 'linear-gradient(90deg, #f97316, #fb923c, #fbbf24)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}>
+                      Settle in BTC.
+                    </span>
+                  </>
+                )}
+              </h1>
+
+              {/* Subtext */}
+              <p className="text-sm mb-7 max-w-sm leading-relaxed" style={{ color: 'rgba(245,240,232,0.55)' }}>
+                {assetType === 'tokens'
+                  ? 'Bitcoin-native token markets on bonding curves. No order book. No AMM. Price determined entirely by supply.'
+                  : 'Fixed-price NFT collections on Midl\u2019s Bitcoin execution layer. Mint on-chain, settlement finalised in BTC.'}
+              </p>
+
+              {/* CTAs */}
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={assetType === 'tokens' ? '/create' : '/launch-nft'}
+                  className="btn btn-primary flex items-center gap-2 text-sm px-5 py-2.5"
+                >
+                  <Rocket size={14} />
+                  {assetType === 'tokens' ? 'Launch Token' : 'Launch NFT'}
+                </Link>
+                <button
+                  onClick={() => document.getElementById('browse-grid')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-80"
+                  style={{
+                    background: 'rgba(255,255,255,0.07)',
+                    color: 'rgba(245,240,232,0.7)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                  }}
+                >
+                  Browse All
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+
+              {/* Feature tags */}
+              <div className="flex flex-wrap gap-2 mt-6">
+                {(assetType === 'tokens'
+                  ? ['Bonding curve pricing', 'No pre-sale', 'Creator fees on-chain', 'Instant liquidity']
+                  : ['Fixed-price minting', 'On-chain provenance', 'BTC settlement', 'EVM execution']
+                ).map(tag => (
+                  <span
+                    key={tag}
+                    className="text-[11px] px-2.5 py-1 rounded-md"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'rgba(245,240,232,0.45)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: carousel */}
+            <div className="lg:col-span-2">
+              {carouselSlides.length > 0
+                ? <HeroCarousel slides={carouselSlides} />
+                : (
+                  <div
+                    className="rounded-2xl h-64 flex flex-col items-center justify-center gap-3"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                    }}
+                  >
+                    <Sparkles size={28} style={{ color: 'rgba(249,115,22,0.4)' }} />
+                    <span className="text-sm" style={{ color: 'rgba(245,240,232,0.3)' }}>
+                      Awaiting launches…
+                    </span>
+                  </div>
+                )
+              }
+            </div>
+          </div>
         </div>
       </div>
 
@@ -481,7 +613,11 @@ export default function LaunchesPage() {
       )}
 
       {/* ── Grid ── */}
-      <div id="browse-grid">
+      <div
+        id="browse-grid"
+        className="rounded-2xl p-6 md:p-8"
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
+      >
         {assetType === 'tokens' ? (
           isLoading ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -503,7 +639,7 @@ export default function LaunchesPage() {
           ) : (
             <div
               className="rounded-xl p-16 text-center"
-              style={{ background: 'var(--bg-surface)', border: '1px dashed var(--bg-border)' }}
+              style={{ border: '1px dashed var(--bg-border)' }}
             >
               <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {search ? `No results for "${search}"` : 'No launches yet'}
@@ -536,7 +672,7 @@ export default function LaunchesPage() {
           ) : (
             <div
               className="rounded-xl p-16 text-center"
-              style={{ background: 'var(--bg-surface)', border: '1px dashed var(--bg-border)' }}
+              style={{ border: '1px dashed var(--bg-border)' }}
             >
               <p className="mb-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {search ? `No results for "${search}"` : 'No NFT collections yet'}
