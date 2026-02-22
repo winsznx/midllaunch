@@ -171,7 +171,7 @@ export function Header() {
             {/* Nav — scrollable on md */}
             <nav
               className="hidden md:flex items-center gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none"
-              style={{ background: 'var(--bg-elevated)' }}
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
             >
               {NAV_LINKS.map(({ href, label }) => {
                 const active = pathname === href || pathname.startsWith(href + '/');
@@ -206,7 +206,7 @@ export function Header() {
               onClick={toggleTheme}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)' }}
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)', color: 'var(--text-tertiary)' }}
             >
               {theme === 'dark' ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

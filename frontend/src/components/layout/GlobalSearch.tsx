@@ -131,7 +131,7 @@ export function GlobalSearch() {
           onClick={() => setOpen(true)}
           aria-label="Search (⌘K)"
           className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-          style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)' }}
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)', color: 'var(--text-tertiary)' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
