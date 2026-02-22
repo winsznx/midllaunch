@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, use, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import {
@@ -10,6 +10,7 @@ import {
 import { useReadContract, usePublicClient } from 'wagmi';
 import { encodeFunctionData } from 'viem';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import {
   MIDL_NFT_ABI,
   NFT_MARKETPLACE_ABI,
@@ -283,12 +284,9 @@ interface SecondaryListing {
   priceSats: bigint;
 }
 
-export default function NftCollectionPage({
-  params,
-}: {
-  params: Promise<{ address: string }>;
-}) {
-  const { address } = use(params);
+export default function NftCollectionPage() {
+  const params = useParams();
+  const address = params.address as string;
   const { accounts } = useAccounts();
   const paymentAccount = accounts?.find(a => a.purpose === AddressPurpose.Payment);
   const publicClient = usePublicClient();
