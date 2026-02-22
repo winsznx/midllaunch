@@ -193,9 +193,14 @@ class MidlLaunchIndexer {
         orderBy: { createdAt: 'desc' },
       });
 
-      // Store in database
-      await prisma.launch.create({
-        data: {
+      // Store in database with upsert to handle re-syncs gracefully
+      await prisma.launch.upsert({
+        where: { id: tokenAddress.toLowerCase() },
+        update: {
+          blockNumber: BigInt(log.blockNumber),
+          txHash: log.transactionHash || '',
+        },
+        create: {
           id: tokenAddress.toLowerCase(),
           tokenAddress: tokenAddress.toLowerCase(),
           curveAddress: curveAddress.toLowerCase(),
@@ -218,7 +223,7 @@ class MidlLaunchIndexer {
             ...(pendingMeta.twitterUrl ? { twitterUrl: pendingMeta.twitterUrl } : {}),
             ...(pendingMeta.telegramUrl ? { telegramUrl: pendingMeta.telegramUrl } : {}),
             ...(pendingMeta.websiteUrl ? { websiteUrl: pendingMeta.websiteUrl } : {}),
-          } : {}),
+          } : {})
         }
       });
 
