@@ -177,226 +177,226 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
 
   return (
     <>
-    <TxProgress
-      isOpen={showProgress}
-      title={`Buying ${launch.symbol}`}
-      subtitle="Bitcoin-secured · Non-custodial"
-      steps={txSteps}
-      error={buyError}
-      btcTxId={btcTxId}
-      successSummary={successSummary}
-      onClose={() => { setShowProgress(false); setBuyError(null); }}
-    />
-    <div className="space-y-4">
-      <div
-        className="rounded-xl p-5 space-y-4"
-        style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
-      >
-        <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Buy {launch.symbol}</h3>
+      <TxProgress
+        isOpen={showProgress}
+        title={`Buying ${launch.symbol}`}
+        subtitle="Bitcoin-secured · Non-custodial"
+        steps={txSteps}
+        error={buyError}
+        btcTxId={btcTxId}
+        successSummary={successSummary}
+        onClose={() => { setShowProgress(false); setBuyError(null); }}
+      />
+      <div className="space-y-4">
+        <div
+          className="rounded-xl p-5 space-y-4"
+          style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
+        >
+          <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Buy {launch.symbol}</h3>
 
-        {/* Quick amounts */}
-        <div className="flex gap-2">
-          {QUICK_AMOUNTS.map(amt => (
-            <button
-              key={amt}
-              onClick={() => setBtcAmount(amt)}
-              className="flex-1 py-1.5 rounded-lg text-xs font-mono transition-all"
-              style={{
-                background: btcAmount === amt ? 'var(--orange-500)' : 'var(--bg-elevated)',
-                color: btcAmount === amt ? '#fff' : 'var(--text-secondary)',
-                border: '1px solid var(--bg-border)',
+          {/* Quick amounts */}
+          <div className="flex gap-2">
+            {QUICK_AMOUNTS.map(amt => (
+              <button
+                key={amt}
+                onClick={() => setBtcAmount(amt)}
+                className="flex-1 py-1.5 rounded-lg text-xs font-mono transition-all whitespace-nowrap overflow-hidden"
+                style={{
+                  background: btcAmount === amt ? 'var(--orange-500)' : 'var(--bg-elevated)',
+                  color: btcAmount === amt ? '#fff' : 'var(--text-secondary)',
+                  border: '1px solid var(--bg-border)',
+                }}
+              >
+                {amt}
+              </button>
+            ))}
+          </div>
+
+          {/* BTC input */}
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="decimal"
+              value={btcAmount}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === '' || /^\d*\.?\d*$/.test(v)) setBtcAmount(v);
               }}
+              placeholder="0.000"
+              className="input pr-14 font-mono"
+            />
+            <span
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono"
+              style={{ color: 'var(--text-tertiary)' }}
             >
-              {amt}
-            </button>
-          ))}
-        </div>
+              BTC
+            </span>
+          </div>
 
-        {/* BTC input */}
-        <div className="relative">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={btcAmount}
-            onChange={e => {
-              const v = e.target.value;
-              if (v === '' || /^\d*\.?\d*$/.test(v)) setBtcAmount(v);
-            }}
-            placeholder="0.000"
-            className="input pr-14 font-mono"
-          />
-          <span
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            BTC
-          </span>
-        </div>
-
-        {/* Estimate */}
-        {estimatedTokens > BigInt(0) && (
-          <div className="space-y-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <div className="flex justify-between">
-              <span>You receive</span>
-              <span className="font-mono font-medium" style={{ color: exceedsCap ? 'var(--red-500)' : 'var(--text-primary)' }}>
-                ~{formatTokenAmount((estimatedTokens).toString())} {launch.symbol}
-              </span>
-            </div>
-            {exceedsCap && (
-              <div className="flex justify-between" style={{ color: 'var(--red-500)' }}>
-                <span>Remaining supply</span>
-                <span className="font-mono">{formatTokenAmount(remainingSupply.toString())} {launch.symbol}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span>Min received</span>
-              <span className="font-mono">~{minReceived.toFixed(2)} {launch.symbol}</span>
-            </div>
-            {priceImpact !== null && (
+          {/* Estimate */}
+          {estimatedTokens > BigInt(0) && (
+            <div className="space-y-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <div className="flex justify-between">
-                <span>Price impact</span>
-                <span
-                  className="font-mono"
-                  style={{
-                    color: priceImpact > 5
-                      ? 'var(--red-500)'
-                      : priceImpact > 2
-                      ? '#eab308'
-                      : 'var(--green-500)',
-                  }}
-                >
-                  {priceImpact > 0 ? '+' : ''}{priceImpact.toFixed(2)}%
+                <span>You receive</span>
+                <span className="font-mono font-medium" style={{ color: exceedsCap ? 'var(--red-500)' : 'var(--text-primary)' }}>
+                  ~{formatTokenAmount((estimatedTokens).toString())} {launch.symbol}
                 </span>
               </div>
-            )}
-            {launch.creatorFeeRate && (
-              <div className="flex justify-between" style={{ color: 'var(--text-tertiary)' }}>
-                <span>Creator fee</span>
-                <span className="font-mono">
-                  {(Number(launch.creatorFeeRate) / 100).toFixed(2)}%
-                </span>
+              {exceedsCap && (
+                <div className="flex justify-between" style={{ color: 'var(--red-500)' }}>
+                  <span>Remaining supply</span>
+                  <span className="font-mono">{formatTokenAmount(remainingSupply.toString())} {launch.symbol}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Min received</span>
+                <span className="font-mono">~{minReceived.toFixed(2)} {launch.symbol}</span>
+              </div>
+              {priceImpact !== null && (
+                <div className="flex justify-between">
+                  <span>Price impact</span>
+                  <span
+                    className="font-mono"
+                    style={{
+                      color: priceImpact > 5
+                        ? 'var(--red-500)'
+                        : priceImpact > 2
+                          ? '#eab308'
+                          : 'var(--green-500)',
+                    }}
+                  >
+                    {priceImpact > 0 ? '+' : ''}{priceImpact.toFixed(2)}%
+                  </span>
+                </div>
+              )}
+              {launch.creatorFeeRate && (
+                <div className="flex justify-between" style={{ color: 'var(--text-tertiary)' }}>
+                  <span>Creator fee</span>
+                  <span className="font-mono">
+                    {(Number(launch.creatorFeeRate) / 100).toFixed(2)}%
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Slippage */}
+          <div>
+            <button
+              onClick={() => setShowSlippage(!showSlippage)}
+              className="text-xs flex items-center gap-1 transition-colors hover:opacity-80"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              Slippage: {slippage}% {showSlippage ? '▲' : '▼'}
+            </button>
+            {showSlippage && (
+              <div className="flex gap-2 mt-2">
+                {['0.5', '1', '2'].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setSlippage(s)}
+                    className="flex-1 py-1 rounded text-xs font-mono transition-all"
+                    style={{
+                      background: slippage === s ? 'var(--orange-100)' : 'var(--bg-elevated)',
+                      color: slippage === s ? 'var(--orange-500)' : 'var(--text-secondary)',
+                      border: `1px solid ${slippage === s ? 'var(--orange-500)' : 'var(--bg-border)'}`,
+                    }}
+                  >
+                    {s}%
+                  </button>
+                ))}
               </div>
             )}
           </div>
-        )}
 
-        {/* Slippage */}
-        <div>
+          {/* Buy button */}
           <button
-            onClick={() => setShowSlippage(!showSlippage)}
-            className="text-xs flex items-center gap-1 transition-colors hover:opacity-80"
-            style={{ color: 'var(--text-tertiary)' }}
+            onClick={handleBuy}
+            disabled={isBuying || !btcAmount || parseFloat(btcAmount) <= 0 || exceedsCap}
+            className="btn btn-primary w-full py-3 font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Slippage: {slippage}% {showSlippage ? '▲' : '▼'}
+            {isBuying ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="inline-block w-4 h-4 border-2 rounded-full animate-spin"
+                  style={{ borderColor: '#fff', borderTopColor: 'transparent' }} />
+                Processing…
+              </span>
+            ) : (
+              `Buy ${launch.symbol}`
+            )}
           </button>
-          {showSlippage && (
-            <div className="flex gap-2 mt-2">
-              {['0.5', '1', '2'].map(s => (
-                <button
-                  key={s}
-                  onClick={() => setSlippage(s)}
-                  className="flex-1 py-1 rounded text-xs font-mono transition-all"
-                  style={{
-                    background: slippage === s ? 'var(--orange-100)' : 'var(--bg-elevated)',
-                    color: slippage === s ? 'var(--orange-500)' : 'var(--text-secondary)',
-                    border: `1px solid ${slippage === s ? 'var(--orange-500)' : 'var(--bg-border)'}`,
-                  }}
-                >
-                  {s}%
-                </button>
-              ))}
-            </div>
-          )}
+
         </div>
 
-        {/* Buy button */}
-        <button
-          onClick={handleBuy}
-          disabled={isBuying || !btcAmount || parseFloat(btcAmount) <= 0 || exceedsCap}
-          className="btn-primary w-full py-3 font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isBuying ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="inline-block w-4 h-4 border-2 rounded-full animate-spin"
-                style={{ borderColor: '#fff', borderTopColor: 'transparent' }} />
-              Processing…
-            </span>
-          ) : (
-            `Buy ${launch.symbol}`
-          )}
-        </button>
+        {/* Share section */}
+        {shareUrl && (
+          <div
+            className="rounded-xl p-4 space-y-2"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
+          >
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Share & earn referral</p>
+            <div className="flex items-center gap-2">
+              <span
+                className="flex-1 font-mono text-xs truncate px-2 py-1.5 rounded"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)' }}
+              >
+                {shareUrl.replace('https://', '').slice(0, 40)}…
+              </span>
+              <button
+                onClick={() => navigator.clipboard.writeText(shareUrl)}
+                className="px-3 py-1.5 rounded text-xs transition-all hover:opacity-80"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--bg-border)' }}
+              >
+                Copy
+              </button>
+            </div>
+            <a
+              href={`https://twitter.com/intent/tweet?text=Check out ${launch.name} ($${launch.symbol}) on MidlLaunch&url=${encodeURIComponent(shareUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90"
+              style={{ background: '#000', color: '#fff' }}
+            >
+              Share on 𝕏
+            </a>
+          </div>
+        )}
 
-      </div>
-
-      {/* Share section */}
-      {shareUrl && (
+        {/* Token info */}
         <div
           className="rounded-xl p-4 space-y-2"
           style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
         >
-          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Share & earn referral</p>
-          <div className="flex items-center gap-2">
-            <span
-              className="flex-1 font-mono text-xs truncate px-2 py-1.5 rounded"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)' }}
-            >
-              {shareUrl.replace('https://', '').slice(0, 40)}…
-            </span>
-            <button
-              onClick={() => navigator.clipboard.writeText(shareUrl)}
-              className="px-3 py-1.5 rounded text-xs transition-all hover:opacity-80"
-              style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--bg-border)' }}
-            >
-              Copy
-            </button>
-          </div>
-          <a
-            href={`https://twitter.com/intent/tweet?text=Check out ${launch.name} ($${launch.symbol}) on MidlLaunch&url=${encodeURIComponent(shareUrl)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90"
-            style={{ background: '#000', color: '#fff' }}
-          >
-            Share on 𝕏
-          </a>
+          <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Token Info</p>
+          {[
+            ['Creator', `${launch.creator.slice(0, 8)}…${launch.creator.slice(-6)}`],
+            ['Supply Cap', `${formatTokenAmount(launch.supplyCap)} ${launch.symbol}`],
+            ['Base Price', `${formatBTC(launch.basePrice)} BTC`],
+            ['Price Step', `${formatBTC(launch.priceIncrement)} BTC/token`],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between text-xs">
+              <span style={{ color: 'var(--text-tertiary)' }}>{label}</span>
+              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{value}</span>
+            </div>
+          ))}
+          {(launch as Launch & { twitterUrl?: string; telegramUrl?: string; websiteUrl?: string }).twitterUrl || (launch as Launch & { twitterUrl?: string; telegramUrl?: string; websiteUrl?: string }).telegramUrl || (launch as Launch & { twitterUrl?: string; telegramUrl?: string; websiteUrl?: string }).websiteUrl ? (
+            <div className="flex gap-3 pt-2">
+              {(launch as Launch & { twitterUrl?: string }).twitterUrl && (
+                <a href={(launch as Launch & { twitterUrl?: string }).twitterUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-xs hover:underline" style={{ color: 'var(--orange-500)' }}>Twitter</a>
+              )}
+              {(launch as Launch & { telegramUrl?: string }).telegramUrl && (
+                <a href={(launch as Launch & { telegramUrl?: string }).telegramUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-xs hover:underline" style={{ color: 'var(--orange-500)' }}>Telegram</a>
+              )}
+              {(launch as Launch & { websiteUrl?: string }).websiteUrl && (
+                <a href={(launch as Launch & { websiteUrl?: string }).websiteUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-xs hover:underline" style={{ color: 'var(--orange-500)' }}>Website</a>
+              )}
+            </div>
+          ) : null}
         </div>
-      )}
-
-      {/* Token info */}
-      <div
-        className="rounded-xl p-4 space-y-2"
-        style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}
-      >
-        <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>Token Info</p>
-        {[
-          ['Creator', `${launch.creator.slice(0, 8)}…${launch.creator.slice(-6)}`],
-          ['Supply Cap', `${formatTokenAmount(launch.supplyCap)} ${launch.symbol}`],
-          ['Base Price', `${formatBTC(launch.basePrice)} BTC`],
-          ['Price Step', `${formatBTC(launch.priceIncrement)} BTC/token`],
-        ].map(([label, value]) => (
-          <div key={label} className="flex justify-between text-xs">
-            <span style={{ color: 'var(--text-tertiary)' }}>{label}</span>
-            <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>{value}</span>
-          </div>
-        ))}
-        {(launch as Launch & { twitterUrl?: string; telegramUrl?: string; websiteUrl?: string }).twitterUrl || (launch as Launch & { twitterUrl?: string; telegramUrl?: string; websiteUrl?: string }).telegramUrl || (launch as Launch & { twitterUrl?: string; telegramUrl?: string; websiteUrl?: string }).websiteUrl ? (
-          <div className="flex gap-3 pt-2">
-            {(launch as Launch & { twitterUrl?: string }).twitterUrl && (
-              <a href={(launch as Launch & { twitterUrl?: string }).twitterUrl} target="_blank" rel="noopener noreferrer"
-                className="text-xs hover:underline" style={{ color: 'var(--orange-500)' }}>Twitter</a>
-            )}
-            {(launch as Launch & { telegramUrl?: string }).telegramUrl && (
-              <a href={(launch as Launch & { telegramUrl?: string }).telegramUrl} target="_blank" rel="noopener noreferrer"
-                className="text-xs hover:underline" style={{ color: 'var(--orange-500)' }}>Telegram</a>
-            )}
-            {(launch as Launch & { websiteUrl?: string }).websiteUrl && (
-              <a href={(launch as Launch & { websiteUrl?: string }).websiteUrl} target="_blank" rel="noopener noreferrer"
-                className="text-xs hover:underline" style={{ color: 'var(--orange-500)' }}>Website</a>
-            )}
-          </div>
-        ) : null}
       </div>
-    </div>
     </>
   );
 }
