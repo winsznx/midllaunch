@@ -76,15 +76,15 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
     }
     estimateTimer.current = setTimeout(async () => {
       try {
-        // The contract receives msg.value in wei (18 decimals), NOT satoshis.
-        // We must pass the wei value to get the true on-chain quote.
-        const wei = btcToWei(btcAmount);
+        // calculatePurchaseReturn takes btcInSats as its parameter directly.
+        // The buy() function internally converts msg.value (wei) to sats —
+        // the estimate call doesn't go through buy(), so we pass sats here.
         const sats = btcToSatoshis(btcAmount);
         const result = await publicClient.readContract({
           address: launch.curveAddress as `0x${string}`,
           abi: BONDING_CURVE_ABI,
           functionName: 'calculatePurchaseReturn',
-          args: [wei, BigInt(launch.currentSupply || '0')],
+          args: [sats, BigInt(launch.currentSupply || '0')],
         }) as bigint;
         setEstimatedTokens(result);
 

@@ -163,14 +163,14 @@ Use these to verify both layers:
 
 | Contract | Address |
 |----------|---------|
-| LaunchFactory | `0xEc51b4e3D096508dF166b76b085c81D3F16118Fc` |
+| LaunchFactory | `0x25FE7EF91B9C4c79f1Ad46b7419d9db935ee24b1` |
 | NftFactory | `0x06b81d8607E2C984513A763206B80048A9d584F8` |
 | NftMarketplace | `0x9E312623C309d749Ceb50a954E0094502808288d` |
 
 **LaunchFactory**
-- Contract: https://blockscout.staging.midl.xyz/address/0xEc51b4e3D096508dF166b76b085c81D3F16118Fc
-- EVM tx: https://blockscout.staging.midl.xyz/tx/0xb970881268cc5176871f66af27f0a4ccf72655075240c961adaf170b55d0fed1
-- BTC tx: https://mempool.staging.midl.xyz/tx/db0037dd111cfa67dfcc0c5c0dff6c4b57e5a850d1c6db512b5e9636a098c069
+- Contract: https://blockscout.staging.midl.xyz/address/0x25FE7EF91B9C4c79f1Ad46b7419d9db935ee24b1
+- EVM tx: https://blockscout.staging.midl.xyz/tx/0x2cd78eb98510db3f657776994573af16d1fc16b7014a960a09b511835d8bb0e2
+- BTC tx: https://mempool.staging.midl.xyz/tx/e74a36d440506c651d1ef72b2f92d108b85af24f5b32ac578ea822f5a420ef60
 
 **NftFactory**
 - Contract: https://blockscout.staging.midl.xyz/address/0x06b81d8607E2C984513A763206B80048A9d584F8
