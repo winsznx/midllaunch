@@ -1,10 +1,10 @@
 'use client';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
 import { usePublicClient } from 'wagmi';
-import { encodeFunctionData } from 'viem';
+import { encodeFunctionData, keccak256 } from 'viem';
 import { NFT_FACTORY_ABI, NFT_FACTORY_ADDRESS, btcToWei } from '@/lib/contracts/config';
 import { uploadImageToIPFS, uploadMetadataToIPFS } from '@/lib/ipfs/upload';
 import { Spinner } from '@/components/ui/Spinner';
@@ -63,6 +63,8 @@ export default function LaunchNftPage() {
 
   const publicClient = usePublicClient();
   const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
+  const txIntentionsRef = useRef(txIntentions);
+  useEffect(() => { txIntentionsRef.current = txIntentions; }, [txIntentions]);
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { waitForTransactionAsync } = useWaitForTransaction();
@@ -91,6 +93,7 @@ export default function LaunchNftPage() {
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState(false);
   const [btcTxId, setBtcTxId] = useState<string | undefined>();
+  const [evmTxHash, setEvmTxHash] = useState<string | undefined>();
   const [deploySuccessSummary, setDeploySuccessSummary] = useState<string | undefined>();
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -188,8 +191,11 @@ export default function LaunchNftPage() {
       await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setDeployStage(5);
 
+      const signedTx = txIntentionsRef.current[0]?.signedEvmTransaction as `0x${string}`;
+      if (signedTx) setEvmTxHash(keccak256(signedTx));
+
       await publicClient?.sendBTCTransactions({
-        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+        serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setDeployStage(6);
@@ -269,10 +275,12 @@ export default function LaunchNftPage() {
       steps={nftTxSteps}
       error={deployError}
       btcTxId={btcTxId}
+      evmTxHash={evmTxHash}
       successSummary={deploySuccessSummary}
       onClose={() => {
         setShowProgress(false);
         setDeployError(null);
+        setEvmTxHash(undefined);
         if (deployStage >= 7) router.push('/launches');
       }}
     />
