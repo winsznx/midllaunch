@@ -79,123 +79,174 @@ function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
 
   const slide = slides[current];
 
-  const getImageUrl = () => {
-    if (slide.type === 'token') {
-      return slide.item.imageUrl || (slide.item.metadataUri ? ipfsUriToHttp(slide.item.metadataUri) : null);
-    }
-    return slide.item.imageUrl ?? null;
-  };
+  const imageUrl = slide.type === 'token'
+    ? (slide.item.imageUrl || (slide.item.metadataUri ? ipfsUriToHttp(slide.item.metadataUri) : null))
+    : (slide.item.imageUrl ?? null);
 
-  const getGradient = () => {
-    if (slide.type === 'token') return tokenGradient(slide.item.name);
-    return addressGradient(slide.item.contractAddress);
-  };
+  const gradient = slide.type === 'token'
+    ? tokenGradient(slide.item.name)
+    : addressGradient(slide.item.contractAddress);
 
-  const getHref = () => {
-    if (slide.type === 'token') return `/launch/${slide.item.tokenAddress}`;
-    return `/nft/${slide.item.contractAddress}`;
-  };
+  const href = slide.type === 'token'
+    ? `/launch/${slide.item.tokenAddress}`
+    : `/nft/${slide.item.contractAddress}`;
 
-  const getPrice = () => {
-    if (slide.type === 'token') return slide.item.currentPrice ? `${formatBTC(slide.item.currentPrice)} BTC` : '—';
-    const sats = Number(slide.item.mintPrice);
-    if (sats < 100_000) return `${sats} sats`;
-    return `${(sats / 1e8).toFixed(5)} BTC`;
-  };
+  const name = slide.item.name;
+  const symbol = slide.item.symbol;
 
-  const getMarketCap = () => {
-    if (slide.type === 'token') {
-      const sats = slide.item.currentPrice && slide.item.currentSupply
+  const description = slide.type === 'token'
+    ? (slide.item.description ?? null)
+    : (slide.item.description ?? null);
+
+  const creator = slide.type === 'token'
+    ? slide.item.creator
+    : slide.item.creatorAddress;
+
+  const priceLabel = slide.type === 'token' ? 'Price' : 'Mint';
+  const priceValue = slide.type === 'token'
+    ? (slide.item.currentPrice ? `${formatBTC(slide.item.currentPrice)} BTC` : '—')
+    : (() => { const s = Number(slide.item.mintPrice); return s < 100_000 ? `${s} sats` : `${(s / 1e8).toFixed(5)} BTC`; })();
+
+  const marketCapSats = slide.type === 'token'
+    ? (slide.item.currentPrice && slide.item.currentSupply
         ? parseFloat(slide.item.currentPrice) * (Number(slide.item.currentSupply) / 1e18)
-        : 0;
-      return formatMarketCap(sats);
-    }
-    const sats = Number(slide.item.mintPrice) * slide.item.totalMinted;
-    return formatMarketCap(sats);
-  };
+        : 0)
+    : Number(slide.item.mintPrice) * slide.item.totalMinted;
 
-  const getProgress = () => {
-    if (slide.type === 'token') {
-      if (!slide.item.currentSupply || !slide.item.supplyCap) return 0;
-      return Math.min(Number(BigInt(slide.item.currentSupply) * BigInt(10000) / BigInt(slide.item.supplyCap)) / 100, 100);
-    }
-    return slide.item.totalSupply > 0 ? Math.min(100, (slide.item.totalMinted / slide.item.totalSupply) * 100) : 0;
-  };
+  const progress = slide.type === 'token'
+    ? (slide.item.currentSupply && slide.item.supplyCap
+        ? Math.min(Number(BigInt(slide.item.currentSupply) * BigInt(10000) / BigInt(slide.item.supplyCap)) / 100, 100)
+        : 0)
+    : (slide.item.totalSupply > 0 ? Math.min(100, (slide.item.totalMinted / slide.item.totalSupply) * 100) : 0);
 
-  const imageUrl = getImageUrl();
-  const progress = getProgress();
+  const progressLabel = slide.type === 'token' ? 'Bonding curve' : 'Minted';
 
   return (
-    <div className="relative rounded-2xl overflow-hidden" style={{ border: '1px solid var(--bg-border)', boxShadow: '4px 4px 0 rgba(0,0,0,0.8)' }}>
-      {/* Background */}
-      <div
-        className="absolute inset-0 transition-all duration-700"
-        style={{ background: getGradient() }}
-      />
-      {imageUrl && (
-        <Image
-          src={imageUrl}
-          alt={slide.item.name}
-          fill
-          className="object-cover opacity-40"
-          sizes="400px"
-        />
-      )}
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }} />
-
-      {/* Content */}
-      <Link href={getHref()} className="relative block p-5 h-52">
-        <div className="absolute top-4 right-4">
-          <span
-            className="text-xs font-mono px-2 py-0.5 rounded-full"
-            style={{ background: 'rgba(0,0,0,0.5)', color: 'var(--orange-500)', border: '1px solid rgba(249,115,22,0.4)' }}
-          >
-            {slide.type === 'token' ? slide.item.symbol : slide.item.symbol}
-          </span>
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--bg-border)',
+        boxShadow: '4px 4px 0 rgba(0,0,0,0.85)',
+      }}
+    >
+      <Link href={href} className="flex min-h-[220px] block">
+        {/* Image panel */}
+        <div
+          className="relative flex-shrink-0"
+          style={{ width: '44%', background: gradient }}
+        >
+          {imageUrl && (
+            <Image
+              src={imageUrl}
+              alt={name}
+              fill
+              className="object-cover"
+              sizes="200px"
+            />
+          )}
+          {/* Symbol badge */}
+          <div className="absolute top-3 left-3">
+            <span
+              className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded"
+              style={{
+                background: 'rgba(0,0,0,0.65)',
+                color: 'var(--orange-500)',
+                border: '1px solid rgba(249,115,22,0.35)',
+              }}
+            >
+              ${symbol}
+            </span>
+          </div>
+          {/* Bottom gradient */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-12 pointer-events-none"
+            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }}
+          />
         </div>
 
-        <div className="absolute bottom-4 left-5 right-5">
-          <div className="font-display font-bold text-lg text-white leading-tight mb-1 truncate">
-            {slide.item.name}
-          </div>
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              {slide.type === 'token' ? 'Price' : 'Mint'}: {getPrice()}
-            </span>
-            <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              MCap: {getMarketCap()}
-            </span>
-          </div>
-          {/* Progress bar */}
-          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.2)' }}>
+        {/* Details panel */}
+        <div className="flex-1 p-5 flex flex-col justify-between min-w-0">
+          <div className="space-y-1 min-w-0">
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${progress}%`, background: 'var(--orange-500)' }}
-            />
+              className="font-display font-bold text-base leading-tight truncate"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {name}
+            </div>
+            {description && (
+              <p
+                className="text-xs leading-relaxed"
+                style={{
+                  color: 'var(--text-tertiary)',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {description}
+              </p>
+            )}
           </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              {slide.type === 'token' ? 'Bonding curve' : 'Minted'}
-            </span>
-            <span className="text-xs font-mono" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              {progress.toFixed(1)}%
-            </span>
+
+          <div className="space-y-1.5 text-xs mt-3">
+            <div className="flex justify-between">
+              <span style={{ color: 'var(--text-tertiary)' }}>Created by</span>
+              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
+                {creator.slice(0, 8)}…
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: 'var(--text-tertiary)' }}>{priceLabel}</span>
+              <span className="font-mono font-medium" style={{ color: 'var(--text-primary)' }}>
+                {priceValue}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span style={{ color: 'var(--text-tertiary)' }}>Marketcap</span>
+              <span className="font-mono font-medium" style={{ color: 'var(--text-primary)' }}>
+                {formatMarketCap(marketCapSats)}
+              </span>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <div className="mt-3">
+            <div className="flex justify-between text-xs mb-1.5">
+              <span style={{ color: 'var(--text-tertiary)' }}>{progressLabel}</span>
+              <span className="font-mono" style={{ color: 'var(--orange-500)' }}>
+                {progress.toFixed(1)}%
+              </span>
+            </div>
+            <div
+              className="h-1 rounded-full overflow-hidden"
+              style={{ background: 'var(--bg-border)' }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${progress}%`, background: 'var(--orange-500)' }}
+              />
+            </div>
           </div>
         </div>
       </Link>
 
       {/* Slide dots */}
       {slides.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+        <div
+          className="flex items-center justify-center gap-1.5 py-3 border-t"
+          style={{ borderColor: 'var(--bg-border)' }}
+        >
           {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrent(i)}
               className="rounded-full transition-all duration-300"
               style={{
-                width: i === current ? '16px' : '6px',
+                width: i === current ? '18px' : '6px',
                 height: '6px',
-                background: i === current ? 'var(--orange-500)' : 'rgba(255,255,255,0.4)',
+                background: i === current ? 'var(--orange-500)' : 'var(--bg-border)',
               }}
               aria-label={`Slide ${i + 1}`}
             />
@@ -272,17 +323,16 @@ export default function LaunchesPage() {
             className="font-display font-bold leading-tight mb-3"
             style={{ fontSize: 'clamp(1.75rem,4vw,2.75rem)', color: 'var(--text-primary)' }}
           >
-            Create, Trade, and Dominate the{' '}
-            <span
-              className="text-gradient"
-            >
-              {assetType === 'tokens' ? 'Memecoin Universe' : 'NFT Universe'}
-            </span>
+            {assetType === 'tokens' ? (
+              <>Issue tokens. Trade the curve.{' '}<span className="text-gradient">Stack sats.</span></>
+            ) : (
+              <>Deploy collections. Trade on-chain.{' '}<span className="text-gradient">Settle in BTC.</span></>
+            )}
           </h1>
           <p className="text-sm mb-6 max-w-md" style={{ color: 'var(--text-secondary)' }}>
             {assetType === 'tokens'
-              ? 'The Bitcoin-native launchpad for the next generation of memecoin traders. Launch, trade, and earn—secured by BTC.'
-              : 'Mint and collect the hottest NFT collections on the Bitcoin network. Own, trade, and build your collection.'}
+              ? 'Bitcoin-native token markets built on bonding curves. No order book. No AMM. Price determined by supply.'
+              : 'Fixed-price NFT collections deployed on Midl\u2019s Bitcoin execution layer. Mint on-chain, settle in BTC.'}
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
