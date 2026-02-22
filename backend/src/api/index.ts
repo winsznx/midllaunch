@@ -62,6 +62,7 @@ const readLimiter = rateLimit({ windowMs: 60_000, max: 100, standardHeaders: tru
 const writeLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
 
 // Middleware
+app.set('trust proxy', 1);
 app.use(cors({ origin: CORS_ORIGINS.length === 1 ? CORS_ORIGINS[0] : CORS_ORIGINS }));
 app.use(express.json());
 app.use('/api', readLimiter);
@@ -546,16 +547,17 @@ app.get('/api/user/:address/holdings', async (req, res) => {
       include: {
         launch: {
           select: {
-            name: true, symbol: true, tokenAddress: true,
-            basePrice: true, priceIncrement: true,
-          },
-          include: {
+            name: true,
+            symbol: true,
+            tokenAddress: true,
+            basePrice: true,
+            priceIncrement: true,
             purchases: {
               orderBy: { timestamp: 'desc' as const },
               take: 1,
               select: { newSupply: true, newPrice: true },
             },
-          },
+          }
         },
       },
     });
