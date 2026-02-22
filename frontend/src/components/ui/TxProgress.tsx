@@ -18,6 +18,8 @@ interface TxProgressProps {
   steps: TxStep[];
   error?: string | null;
   onClose?: () => void;
+  btcTxId?: string;
+  successSummary?: string;
   successAction?: {
     label: string;
     href?: string;
@@ -73,6 +75,8 @@ function StepIcon({ status }: { status: TxStepStatus }) {
   );
 }
 
+const MEMPOOL = 'https://mempool.staging.midl.xyz/tx';
+
 export function TxProgress({
   isOpen,
   title,
@@ -80,6 +84,8 @@ export function TxProgress({
   steps,
   error,
   onClose,
+  btcTxId,
+  successSummary,
   successAction,
 }: TxProgressProps) {
   const allDone = steps.length > 0 && steps.every(s => s.status === 'done');
@@ -116,7 +122,6 @@ export function TxProgress({
     burst();
   }, [allDone]);
 
-  // Reset confetti flag when modal closes
   useEffect(() => {
     if (!isOpen) confettiFiredRef.current = false;
   }, [isOpen]);
@@ -125,11 +130,12 @@ export function TxProgress({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 overflow-y-auto"
       style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
     >
+      <div className="flex min-h-full items-center justify-center px-4 py-8">
       <div
-        className="w-full max-w-sm rounded-2xl p-7 space-y-6"
+        className="w-full max-w-sm rounded-2xl p-7 space-y-5"
         style={{
           background: 'var(--bg-glass)',
           backdropFilter: 'var(--glass-blur)',
@@ -150,7 +156,7 @@ export function TxProgress({
                 </svg>
               </div>
               <h2 className="font-display font-bold text-xl" style={{ color: 'var(--text-primary)' }}>
-                Done!
+                {successSummary ?? 'Done!'}
               </h2>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
                 Transaction broadcast to Midl Staging
@@ -176,15 +182,13 @@ export function TxProgress({
           )}
         </div>
 
-        {/* Progress connector line + steps */}
+        {/* Steps */}
         <div className="relative space-y-0">
-          {/* Vertical connector line */}
           <div
             className="absolute left-[9px] top-5 bottom-5 w-px"
             style={{ background: 'var(--bg-border)' }}
           />
-
-          <div className="space-y-4">
+          <div className="space-y-3">
             {steps.map((step, i) => (
               <div key={i} className="flex items-start gap-3 relative">
                 <StepIcon status={step.status} />
@@ -212,7 +216,33 @@ export function TxProgress({
           </div>
         </div>
 
-        {/* Error message */}
+        {/* BTC Transaction info — shown as soon as we have a tx ID */}
+        {btcTxId && (
+          <div
+            className="rounded-xl px-4 py-3 space-y-1.5"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                Bitcoin Transaction
+              </span>
+              <a
+                href={`${MEMPOOL}/${btcTxId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs hover:underline"
+                style={{ color: 'var(--orange-500)' }}
+              >
+                Mempool ↗
+              </a>
+            </div>
+            <div className="font-mono text-xs break-all" style={{ color: 'var(--text-secondary)' }}>
+              {btcTxId}
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
         {error && (
           <div
             className="rounded-xl p-3 text-xs leading-relaxed"
@@ -260,6 +290,7 @@ export function TxProgress({
             Keep this tab open · Do not close your wallet
           </p>
         )}
+      </div>
       </div>
     </div>
   );

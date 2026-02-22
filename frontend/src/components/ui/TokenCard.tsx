@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import { GraduationCap } from 'lucide-react';
 import type { Launch } from '@/types';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import { ipfsUriToHttp } from '@/lib/ipfs/upload';
@@ -28,6 +29,14 @@ function progressColor(pct: number): string {
 function isRecentlyActive(launch: Launch): boolean {
   if (!launch.timestamp) return false;
   return Date.now() - new Date(launch.timestamp).getTime() < 60_000;
+}
+
+function formatMarketCap(sats: number): string {
+  if (sats === 0) return '—';
+  const btc = sats / 1e8;
+  if (btc >= 1) return `${btc.toFixed(2)} BTC`;
+  if (btc >= 0.001) return `${btc.toFixed(4)} BTC`;
+  return `${Math.round(sats).toLocaleString()} sats`;
 }
 
 // CSS-only confetti particles for 100% graduation
@@ -77,15 +86,22 @@ export function TokenCard({ launch, index = 0 }: TokenCardProps) {
     ? (launch.imageUrl || ipfsUriToHttp(launch.metadataUri!))
     : null;
 
+  const marketCapSats = launch.currentPrice && launch.currentSupply
+    ? parseFloat(launch.currentPrice) * (Number(launch.currentSupply) / 1e18)
+    : 0;
+
   return (
     <Link
       href={`/launch/${launch.tokenAddress}`}
-      className="group block rounded-xl overflow-hidden transition-all duration-200"
+      className="group block rounded-xl overflow-hidden transition-all duration-200 hover:-translate-y-0.5"
       style={{
         border: isGraduated
           ? '1px solid var(--green-500)'
           : '1px solid var(--bg-border)',
         background: 'var(--bg-surface)',
+        boxShadow: isGraduated
+          ? '4px 4px 0 rgba(34,197,94,0.3), 4px 4px 0 rgba(0,0,0,0.6)'
+          : '4px 4px 0 rgba(0,0,0,0.8)',
         animationDelay: `${index * 60}ms`,
         animation: 'cardIn 0.3s ease both',
       }}
@@ -125,7 +141,7 @@ export function TokenCard({ launch, index = 0 }: TokenCardProps) {
         {/* Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between">
           <span
-            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+            className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
             style={isGraduated ? {
               background: 'rgba(34,197,94,0.2)',
               color: 'var(--green-500)',
@@ -140,11 +156,15 @@ export function TokenCard({ launch, index = 0 }: TokenCardProps) {
               border: '1px solid var(--bg-border)',
             }}
           >
-            {isGraduated ? '🎓 Graduated' : launch.status}
+            {isGraduated && <GraduationCap size={11} />}
+            {isGraduated ? 'Graduated' : launch.status}
           </span>
 
           {isGraduated ? (
-            <span className="badge-green">🎓 GRADUATED</span>
+            <span className="badge-green flex items-center gap-1">
+              <GraduationCap size={10} />
+              GRADUATED
+            </span>
           ) : live ? (
             <span className="badge-live">LIVE</span>
           ) : null}
@@ -203,9 +223,14 @@ export function TokenCard({ launch, index = 0 }: TokenCardProps) {
           </div>
         </div>
 
-        {/* Creator */}
+        {/* Market cap + creator */}
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>by</span>
+          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            MCap{' '}
+            <span className="font-mono font-medium" style={{ color: 'var(--text-secondary)' }}>
+              {formatMarketCap(marketCapSats)}
+            </span>
+          </div>
           <span className="address-chip">{launch.creator}</span>
         </div>
       </div>
