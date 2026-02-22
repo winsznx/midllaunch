@@ -144,6 +144,9 @@ export interface NftLaunchSummary {
   maxPerWallet: number;
   imageUrl?: string | null;
   description?: string | null;
+  twitterUrl?: string | null;
+  telegramUrl?: string | null;
+  websiteUrl?: string | null;
   totalMinted: number;
   isFinalized: boolean;
   creatorAddress: string;

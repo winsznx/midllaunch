@@ -262,7 +262,7 @@ export default function TransactionsPage() {
                         <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--bg-elevated)' }}>
                           <span style={{ color: 'var(--text-tertiary)' }}>Paid</span>
                           <span className="font-num font-medium" style={{ color: 'var(--text-primary)' }}>
-                            {formatBTC(mint.pricePaidSats)} BTC
+                            {formatBTC((BigInt(mint.pricePaidSats || '0') / BigInt(10_000_000_000)).toString())} BTC
                           </span>
                         </div>
                         <ExplorerLinks btcTxId={mint.btcTxHash} evmTxHash={mint.txHash} />

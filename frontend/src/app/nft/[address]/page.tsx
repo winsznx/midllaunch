@@ -8,8 +8,9 @@ import {
   useFinalizeBTCTransaction,
 } from '@midl/executor-react';
 import { useReadContract, usePublicClient } from 'wagmi';
-import { encodeFunctionData } from 'viem';
+import { encodeFunctionData, keccak256 } from 'viem';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import {
   MIDL_NFT_ABI,
@@ -313,7 +314,7 @@ export default function NftCollectionPage() {
   }, [address]);
 
   // ── on-chain reads ──
-  const { data: onChainTotalSupply } = useReadContract({
+  const { data: onChainTotalSupply, refetch: refetchSupply } = useReadContract({
     address: address as `0x${string}`,
     abi: MIDL_NFT_ABI,
     functionName: 'totalSupply',
@@ -428,6 +429,7 @@ export default function NftCollectionPage() {
   const [mintError, setMintError] = useState<string | null>(null);
   const [mintStep, setMintStep] = useState(0);
   const [mintBtcTxId, setMintBtcTxId] = useState<string | undefined>();
+  const [mintEvmHash, setMintEvmHash] = useState<string | undefined>();
   const [showMintProgress, setShowMintProgress] = useState(false);
   const [mintSuccessSummary, setMintSuccessSummary] = useState<string | undefined>();
 
@@ -438,6 +440,7 @@ export default function NftCollectionPage() {
     setMintError(null);
     setMintStep(0);
     setMintBtcTxId(undefined);
+    setMintEvmHash(undefined);
     setMintSuccessSummary(undefined);
     setShowMintProgress(true);
 
@@ -474,6 +477,9 @@ export default function NftCollectionPage() {
       await signIntentionAsync({ txId: fbt.tx.id, intention });
       setMintStep(3);
 
+      const signedTx = txIntentionsRef.current[0].signedEvmTransaction as `0x${string}`;
+      setMintEvmHash(keccak256(signedTx));
+
       await publicClient?.sendBTCTransactions({
         serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
@@ -484,6 +490,7 @@ export default function NftCollectionPage() {
       setMintSuccessSummary(`Minted ${quantity} ${name} NFT${quantity > 1 ? 's' : ''}`);
       window.dispatchEvent(new Event('midl:tx-success'));
       refetchBalance();
+      refetchSupply();
     } catch (err) {
       setMintError(err instanceof Error ? err.message : 'Mint failed');
     } finally {
@@ -495,6 +502,7 @@ export default function NftCollectionPage() {
   const [buyingTokenId, setBuyingTokenId] = useState<number | null>(null);
   const [buyStep, setBuyStep] = useState(0);
   const [buyBtcTxId, setBuyBtcTxId] = useState<string | undefined>();
+  const [buyEvmHash, setBuyEvmHash] = useState<string | undefined>();
   const [showBuyProgress, setShowBuyProgress] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
   const [buySuccessSummary, setBuySuccessSummary] = useState<string | undefined>();
@@ -504,6 +512,7 @@ export default function NftCollectionPage() {
     setBuyingTokenId(listing.tokenId);
     setBuyStep(0);
     setBuyBtcTxId(undefined);
+    setBuyEvmHash(undefined);
     setBuyError(null);
     setBuySuccessSummary(undefined);
     setShowBuyProgress(true);
@@ -539,6 +548,9 @@ export default function NftCollectionPage() {
       await signIntentionAsync({ txId: fbt.tx.id, intention });
       setBuyStep(3);
 
+      const signedTx = txIntentionsRef.current[0].signedEvmTransaction as `0x${string}`;
+      setBuyEvmHash(keccak256(signedTx));
+
       await publicClient?.sendBTCTransactions({
         serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
@@ -560,6 +572,7 @@ export default function NftCollectionPage() {
   const [delistingTokenId, setDelistingTokenId] = useState<number | null>(null);
   const [delistStep, setDelistStep] = useState(0);
   const [delistBtcTxId, setDelistBtcTxId] = useState<string | undefined>();
+  const [delistEvmHash, setDelistEvmHash] = useState<string | undefined>();
   const [showDelistProgress, setShowDelistProgress] = useState(false);
   const [delistError, setDelistError] = useState<string | null>(null);
   const [delistSuccessSummary, setDelistSuccessSummary] = useState<string | undefined>();
@@ -569,6 +582,7 @@ export default function NftCollectionPage() {
     setDelistingTokenId(tokenId);
     setDelistStep(0);
     setDelistBtcTxId(undefined);
+    setDelistEvmHash(undefined);
     setDelistError(null);
     setDelistSuccessSummary(undefined);
     setShowDelistProgress(true);
@@ -599,6 +613,9 @@ export default function NftCollectionPage() {
 
       await signIntentionAsync({ txId: fbt.tx.id, intention });
       setDelistStep(3);
+
+      const signedTx = txIntentionsRef.current[0].signedEvmTransaction as `0x${string}`;
+      setDelistEvmHash(keccak256(signedTx));
 
       await publicClient?.sendBTCTransactions({
         serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
@@ -647,6 +664,8 @@ export default function NftCollectionPage() {
         subtitle={`${symbol ? `$${symbol}` : ''} · Bitcoin-secured`}
         steps={makeMintSteps(mintStep, mintBtcTxId)}
         error={mintError ?? undefined}
+        btcTxId={mintBtcTxId}
+        evmTxHash={mintEvmHash}
         successSummary={mintSuccessSummary}
         onClose={() => { setShowMintProgress(false); setMintError(null); }}
         successAction={mintBtcTxId ? {
@@ -662,6 +681,8 @@ export default function NftCollectionPage() {
         subtitle="Secondary market · Bitcoin-secured"
         steps={makeSecondarySteps(buyStep, 'Queue purchase intent', buyBtcTxId)}
         error={buyError ?? undefined}
+        btcTxId={buyBtcTxId}
+        evmTxHash={buyEvmHash}
         successSummary={buySuccessSummary}
         onClose={() => { setShowBuyProgress(false); setBuyError(null); setBuyingTokenId(null); }}
         successAction={buyBtcTxId ? {
@@ -677,6 +698,8 @@ export default function NftCollectionPage() {
         subtitle="Cancel secondary listing"
         steps={makeSecondarySteps(delistStep, 'Queue delist intent', delistBtcTxId)}
         error={delistError ?? undefined}
+        btcTxId={delistBtcTxId}
+        evmTxHash={delistEvmHash}
         successSummary={delistSuccessSummary}
         onClose={() => { setShowDelistProgress(false); setDelistError(null); setDelistingTokenId(null); }}
         successAction={delistBtcTxId ? {
@@ -695,44 +718,55 @@ export default function NftCollectionPage() {
         />
       )}
 
-      {/* Hero banner */}
-      <div
-        className="w-full"
-        style={{
-          height: '220px',
-          background: imageUrl ? 'var(--bg-base)' : collectionGradient(name),
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
-        )}
-        <div
-          className="absolute inset-0"
-          style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.7) 100%)' }}
-        />
-        <div className="absolute bottom-0 left-0 right-0 p-6">
-          <div className="container mx-auto">
-            <h1 className="font-display font-bold text-2xl text-white mb-0.5">{name}</h1>
-            <div className="flex items-center gap-3">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header (similar to token detail page) */}
+        <div className="flex items-start gap-4 mb-6 lg:mb-8">
+          <div
+            className="relative w-16 h-16 rounded-xl flex-shrink-0 overflow-hidden"
+            style={{
+              background: imageUrl ? 'transparent' : collectionGradient(name),
+            }}
+          >
+            {imageUrl && <Image src={imageUrl} alt={name} fill sizes="64px" className="object-cover" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="font-display font-bold text-2xl leading-none" style={{ color: 'var(--text-primary)' }}>
+                {name}
+              </h1>
               {symbol && (
-                <span className="text-sm font-mono" style={{ color: 'var(--orange-500)' }}>
-                  ${symbol}
-                </span>
-              )}
-              {collection?.creatorAddress && (
-                <span className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                  by {shortAddr(collection.creatorAddress)}
-                </span>
+                <span className="font-mono text-sm" style={{ color: 'var(--text-tertiary)' }}>${symbol}</span>
               )}
             </div>
+            <p className="text-xs mt-1.5" style={{ color: 'var(--text-tertiary)' }}>
+              by <span className="font-mono">{collection?.creatorAddress ? shortAddr(collection.creatorAddress) : '—'}</span>
+            </p>
+            {collection?.description && (
+              <p className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
+                {collection.description}
+              </p>
+            )}
+            {(collection?.twitterUrl || collection?.telegramUrl || collection?.websiteUrl) && (
+              <div className="flex items-center gap-3 mt-2">
+                {collection.twitterUrl && (
+                  <a href={collection.twitterUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-medium hover:underline"
+                    style={{ color: 'var(--orange-500)' }}>𝕏 Twitter</a>
+                )}
+                {collection.telegramUrl && (
+                  <a href={collection.telegramUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-medium hover:underline"
+                    style={{ color: 'var(--orange-500)' }}>✈ Telegram</a>
+                )}
+                {collection.websiteUrl && (
+                  <a href={collection.websiteUrl} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-medium hover:underline"
+                    style={{ color: 'var(--orange-500)' }}>🌐 Website</a>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
         {/* Supply progress bar */}
         <div
           className="rounded-xl p-4 mb-8"
