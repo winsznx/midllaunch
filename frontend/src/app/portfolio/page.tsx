@@ -105,7 +105,7 @@ export default function PortfolioPage() {
               style={{ color: 'var(--text-tertiary)' }}
               title="Copy address"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
             </button>
           </div>
         </div>
@@ -279,58 +279,58 @@ export default function PortfolioPage() {
                 ↓ Export CSV
               </button>
             </div>
-          <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}>
-            <table className="w-full text-xs min-w-[480px]">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--bg-border)', color: 'var(--text-tertiary)' }}>
-                  <th className="text-left px-4 py-3 font-medium">Token</th>
-                  <th className="text-right px-4 py-3 font-medium">BTC Spent</th>
-                  <th className="text-right px-4 py-3 font-medium">Tokens</th>
-                  <th className="text-right px-4 py-3 font-medium">Date</th>
-                  <th className="text-right px-4 py-3 font-medium">TX</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchasesList.map(purchase => (
-                  <tr key={purchase.id} style={{ borderBottom: '1px solid var(--bg-border)' }}>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/launch/${purchase.launch.tokenAddress}`}
-                        className="font-medium hover:underline"
-                        style={{ color: 'var(--text-primary)' }}
-                      >
-                        {purchase.launch.name}
-                        <span className="font-mono font-normal ml-1" style={{ color: 'var(--text-tertiary)' }}>
-                          ${purchase.launch.symbol}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono" style={{ color: 'var(--text-secondary)' }}>
-                      {formatBTC(purchase.btcAmount || '0')}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono" style={{ color: 'var(--green-500)' }}>
-                      +{formatTokenAmount(purchase.tokenAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-right" style={{ color: 'var(--text-tertiary)' }}>
-                      {new Date(purchase.timestamp).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <a
-                          href={`https://mempool.staging.midl.xyz/tx/${purchase.txHash}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="hover:underline"
-                          style={{ color: 'var(--orange-500)' }}
-                        >
-                          BTC ↗
-                        </a>
-                      </div>
-                    </td>
+            <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--bg-surface)', border: '1px solid var(--bg-border)' }}>
+              <table className="w-full text-xs min-w-[480px]">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--bg-border)', color: 'var(--text-tertiary)' }}>
+                    <th className="text-left px-4 py-3 font-medium">Token</th>
+                    <th className="text-right px-4 py-3 font-medium">BTC Spent</th>
+                    <th className="text-right px-4 py-3 font-medium">Tokens</th>
+                    <th className="text-right px-4 py-3 font-medium">Date</th>
+                    <th className="text-right px-4 py-3 font-medium">TX</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {purchasesList.map(purchase => (
+                    <tr key={purchase.id} style={{ borderBottom: '1px solid var(--bg-border)' }}>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/launch/${purchase.launch.tokenAddress}`}
+                          className="font-medium hover:underline"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          {purchase.launch.name}
+                          <span className="font-mono font-normal ml-1" style={{ color: 'var(--text-tertiary)' }}>
+                            ${purchase.launch.symbol}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono" style={{ color: 'var(--text-secondary)' }}>
+                        {formatBTC(purchase.btcAmount || '0')}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono" style={{ color: 'var(--green-500)' }}>
+                        +{formatTokenAmount(purchase.tokenAmount)}
+                      </td>
+                      <td className="px-4 py-3 text-right" style={{ color: 'var(--text-tertiary)' }}>
+                        {new Date(purchase.timestamp).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <a
+                            href={`https://blockscout.staging.midl.xyz/tx/${purchase.txHash}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="hover:underline"
+                            style={{ color: 'var(--orange-500)' }}
+                          >
+                            Explorer ↗
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         ) : (
           <div className="rounded-xl p-12 text-center" style={{ background: 'var(--bg-surface)', border: '1px dashed var(--bg-border)' }}>

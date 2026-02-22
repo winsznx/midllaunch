@@ -156,18 +156,20 @@ export function Header() {
         <ActivityTicker />
 
         {/* Main nav row */}
-        <div className="w-full flex h-14 items-center justify-between px-4 md:px-6">
+        <div className="relative w-full flex h-14 items-center justify-between px-4 md:px-6">
           {/* Logo */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 z-10">
             <Link href="/" className="flex items-center gap-2 select-none flex-shrink-0">
               <span className="font-display font-bold text-lg leading-none text-gradient">
                 MidlLaunch
               </span>
             </Link>
+          </div>
 
-            {/* Nav — scrollable on md */}
+          {/* Nav — centered on md */}
+          <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 z-0">
             <nav
-              className="hidden md:flex items-center gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none"
+              className="flex items-center gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none"
               style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
             >
               {NAV_LINKS.map(({ href, label }) => {

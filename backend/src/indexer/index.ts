@@ -223,6 +223,8 @@ class MidlLaunchIndexer {
         orderBy: { createdAt: 'desc' },
       });
 
+      const actualCreator = pendingMeta?.btcAddress || creator.toLowerCase();
+
       // Store in database with upsert to handle re-syncs gracefully
       await prisma.launch.upsert({
         where: { id: tokenAddress.toLowerCase() },
@@ -234,7 +236,7 @@ class MidlLaunchIndexer {
           id: tokenAddress.toLowerCase(),
           tokenAddress: tokenAddress.toLowerCase(),
           curveAddress: curveAddress.toLowerCase(),
-          creator: creator.toLowerCase(),
+          creator: actualCreator,
           intentId,
           name,
           symbol,
@@ -272,7 +274,7 @@ class MidlLaunchIndexer {
       await broadcast('launch_created', {
         tokenAddress: tokenAddress.toLowerCase(),
         curveAddress: curveAddress.toLowerCase(),
-        creator: creator.toLowerCase(),
+        creator: actualCreator,
         name,
         symbol,
         timestamp: new Date(block.timestamp * 1000).toISOString()
@@ -475,6 +477,8 @@ class MidlLaunchIndexer {
         orderBy: { createdAt: 'desc' },
       });
 
+      const actualCreator = pendingMeta?.btcAddress || (creator as string).toLowerCase();
+
       await prisma.nftLaunch.upsert({
         where: { contractAddress },
         update: {
@@ -487,7 +491,7 @@ class MidlLaunchIndexer {
           totalSupply: Number(maxSupply),
           mintPrice: BigInt(mintPrice.toString()),
           maxPerWallet,
-          creatorAddress: (creator as string).toLowerCase(),
+          creatorAddress: actualCreator,
           ...(pendingMeta ? {
             metadataCID: pendingMeta.metadataCID,
             ...(pendingMeta.imageCID ? { imageUrl: `https://gateway.pinata.cloud/ipfs/${pendingMeta.imageCID}` } : {}),
@@ -512,7 +516,7 @@ class MidlLaunchIndexer {
 
       await broadcast('nft_collection_created', {
         contractAddress,
-        creator: (creator as string).toLowerCase(),
+        creator: actualCreator,
         name,
         symbol,
         maxSupply: maxSupply.toString(),

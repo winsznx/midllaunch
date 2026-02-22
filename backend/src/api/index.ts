@@ -792,12 +792,13 @@ app.get('/api/launches/:tokenAddress/comments', async (req, res) => {
 // POST /api/pending-metadata - Store IPFS metadata CID before tx confirms
 app.post('/api/pending-metadata', async (req, res) => {
   try {
-    const { btcTxId, metadataCID, imageCID, name, symbol, description, twitterUrl, telegramUrl, websiteUrl } = req.body as {
+    const { btcTxId, metadataCID, imageCID, name, symbol, btcAddress, description, twitterUrl, telegramUrl, websiteUrl } = req.body as {
       btcTxId?: string;
       metadataCID?: string;
       imageCID?: string;
       name?: string;
       symbol?: string;
+      btcAddress?: string;
       description?: string;
       twitterUrl?: string;
       telegramUrl?: string;
@@ -811,6 +812,7 @@ app.post('/api/pending-metadata', async (req, res) => {
     await prisma.pendingMetadata.create({
       data: {
         btcTxId, metadataCID, name, symbol,
+        ...(btcAddress ? { btcAddress } : {}),
         ...(imageCID ? { imageCID } : {}),
         ...(description ? { description } : {}),
         ...(twitterUrl ? { twitterUrl } : {}),

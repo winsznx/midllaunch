@@ -191,6 +191,7 @@ model PendingMetadata {
   btcTxId     String   // Bitcoin tx ID from finalizeBTCTransaction
   name        String
   symbol      String
+  btcAddress  String?
   metadataCID String   // ipfs://Qm... or just the CID
   imageCID    String?  // CID of the token image
   description String?  @db.Text
