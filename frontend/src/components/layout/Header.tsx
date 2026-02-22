@@ -147,7 +147,7 @@ export function Header() {
   const isConnecting = status === 'pending';
 
   return (
-    <header className="sticky top-4 z-50 w-full px-4 md:px-6 mb-8 mt-2 transition-all duration-300">
+    <header className="sticky top-4 z-40 w-full px-4 md:px-6 mb-8 mt-2 transition-all duration-300">
       <div
         className="mx-auto max-w-6xl w-full flex flex-col overflow-hidden rounded-2xl shadow-xl backdrop-blur-md"
         style={{
