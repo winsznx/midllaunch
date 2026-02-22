@@ -3,6 +3,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 const records = [
+    { "name": "GITLOOk", "symbol": "GLT", "description": "git history of unemployed devs", "image": "ipfs://bafkreibuxtlw7ws2ve2zg66jsiewdluvoc3txrwc64welnmlag4fl5djzm" },
+    { "name": "vibecodetips", "symbol": "VBT", "description": "vibecodingtips", "image": "ipfs://bafkreibmwwg7geec6p7itqzftpcnjlkftamsla6khdhcgneekjtm3e2p2a" },
+    { "name": "brand", "symbol": "BND", "description": "", "image": "ipfs://bafkreiabdtxmjn3nddfkdujeuvyhifi74zjqp42qnc257tanvljs3ur3te" },
     { "name": "My Doll", "symbol": "MYDL", "description": "My Doll", "image": "ipfs://bafkreiftpdvcvb6ju3m5adp6vagikfgl2a2hlt5ogm7c7axrj54uctxyce" },
     { "name": "CHILLGUY", "symbol": "CHG", "description": "Chillguy Nft ", "image": "ipfs://bafkreickzfkkunvyysembd6kvym3so335cknvqgabuqrwhawoqq54sa64e" },
     { "name": "WINSZN", "symbol": "WSM", "description": "Winszn's NFT, founder of midllaunch.", "image": "ipfs://bafkreickkxvvaibjgwedmwxmwugamu66h7b4zibqhdrqfveibs3jogmenq", "external_url": "https://winszn.xyz", "twitter": "https://x.com/winsznx", "telegram": "https://t.me?winszn_x" },
