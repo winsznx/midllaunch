@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
-import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
+import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
 import { usePublicClient } from 'wagmi';
 import { encodeFunctionData } from 'viem';
 import { BONDING_CURVE_ABI, btcToWei, btcToSatoshis } from '@/lib/contracts/config';
@@ -18,17 +18,22 @@ interface BuyPanelProps {
 
 const QUICK_AMOUNTS = ['0.001', '0.005', '0.01'];
 
-function makeBuySteps(completedStep: number, btcTxId?: string): TxStep[] {
-  const labels = [
-    { label: 'Queue EVM intent', detail: undefined as string | undefined },
-    { label: 'Build BTC transaction', detail: btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined },
-    { label: 'Sign with wallet (BIP-322)', detail: undefined as string | undefined },
-    { label: 'Broadcast to Midl', detail: undefined as string | undefined },
+function makeBuySteps(activeStep: number, btcTxId?: string): TxStep[] {
+  const defs: { label: string; activeDetail?: string; doneDetail?: string }[] = [
+    { label: 'Queue EVM intent', activeDetail: 'Encoding buy calldata for bonding curve' },
+    {
+      label: 'Build BTC transaction',
+      activeDetail: 'Wallet opening · Signing your UTXOs',
+      doneDetail: btcTxId ? `${btcTxId.slice(0, 20)}…` : undefined,
+    },
+    { label: 'Sign with wallet (BIP-322)', activeDetail: 'Linking EVM intent to BTC tx' },
+    { label: 'Broadcast to Bitcoin + Midl', activeDetail: 'Submitting both transactions to network' },
+    { label: 'Awaiting settlement', activeDetail: 'BTC confirmation → Midl EVM execution' },
   ];
-  return labels.map((s, i) => ({
+  return defs.map((s, i) => ({
     label: s.label,
-    detail: s.detail,
-    status: i < completedStep ? 'done' : i === completedStep ? 'active' : 'pending',
+    detail: i < activeStep ? s.doneDetail : i === activeStep ? s.activeDetail : undefined,
+    status: i < activeStep ? 'done' : i === activeStep ? 'active' : 'pending',
   }));
 }
 
@@ -37,10 +42,9 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
   const publicClient = usePublicClient();
 
-  const { addTxIntentionAsync } = useAddTxIntention();
+  const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
-  const { sendBTCTransactionsAsync } = useSendBTCTransactions();
   const { waitForTransactionAsync } = useWaitForTransaction();
 
   const [btcAmount, setBtcAmount] = useState(defaultBtcAmount ?? '');
@@ -53,6 +57,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
   const [activeStep, setActiveStep] = useState(0);
   const [btcTxId, setBtcTxId] = useState<string | undefined>();
   const [showProgress, setShowProgress] = useState(false);
+  const [successSummary, setSuccessSummary] = useState<string | undefined>();
   const estimateTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -102,6 +107,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
     setBuyError(null);
     setActiveStep(0);
     setBtcTxId(undefined);
+    setSuccessSummary(undefined);
     setShowProgress(true);
 
     try {
@@ -135,16 +141,20 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
       setBtcTxId(fbtResult.tx.id);
       setActiveStep(2);
 
-      const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
+      await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setActiveStep(3);
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signedIntention],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setActiveStep(4);
 
       await waitForTransactionAsync({ txId: fbtResult.tx.id });
+      setActiveStep(5);
+      const tokensReceived = formatTokenAmount(estimatedTokens.toString());
+      setSuccessSummary(`Bought ${tokensReceived} ${launch.symbol} for ${btcAmount} BTC`);
+      window.dispatchEvent(new Event('midl:tx-success'));
       onSuccess?.(fbtResult.tx.id);
       setBtcAmount('');
     } catch (err) {
@@ -173,11 +183,9 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
       subtitle="Bitcoin-secured · Non-custodial"
       steps={txSteps}
       error={buyError}
+      btcTxId={btcTxId}
+      successSummary={successSummary}
       onClose={() => { setShowProgress(false); setBuyError(null); }}
-      successAction={btcTxId ? {
-        label: 'View BTC Transaction ↗',
-        href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
-      } : undefined}
     />
     <div className="space-y-4">
       <div
@@ -199,7 +207,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
                 border: '1px solid var(--bg-border)',
               }}
             >
-              {amt} BTC
+              {amt}
             </button>
           ))}
         </div>
@@ -207,12 +215,14 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
         {/* BTC input */}
         <div className="relative">
           <input
-            type="number"
+            type="text"
+            inputMode="decimal"
             value={btcAmount}
-            onChange={e => setBtcAmount(e.target.value)}
+            onChange={e => {
+              const v = e.target.value;
+              if (v === '' || /^\d*\.?\d*$/.test(v)) setBtcAmount(v);
+            }}
             placeholder="0.000"
-            min="0"
-            step="0.001"
             className="input pr-14 font-mono"
           />
           <span
@@ -337,7 +347,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
               className="px-3 py-1.5 rounded text-xs transition-all hover:opacity-80"
               style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--bg-border)' }}
             >
-              Copy 📋
+              Copy
             </button>
           </div>
           <a

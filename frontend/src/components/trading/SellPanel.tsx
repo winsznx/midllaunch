@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
-import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
+import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
 import { usePublicClient, useReadContract } from 'wagmi';
 import { encodeFunctionData, erc20Abi } from 'viem';
 import { BONDING_CURVE_ABI } from '@/lib/contracts/config';
@@ -18,15 +18,20 @@ interface SellPanelProps {
 const PCT_PRESETS = [25, 50, 75, 100] as const;
 
 function makeSellSteps(activeStep: number, btcTxId?: string): TxStep[] {
-  const labels: { label: string; detail?: string }[] = [
-    { label: 'Queue sell intent' },
-    { label: 'Build BTC transaction', detail: btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined },
-    { label: 'Sign with wallet (BIP-322)' },
-    { label: 'Broadcast to Midl' },
+  const defs: { label: string; activeDetail?: string; doneDetail?: string }[] = [
+    { label: 'Queue EVM intent', activeDetail: 'Encoding sell calldata for bonding curve' },
+    {
+      label: 'Build BTC transaction',
+      activeDetail: 'Wallet opening · Signing your UTXOs',
+      doneDetail: btcTxId ? `${btcTxId.slice(0, 20)}…` : undefined,
+    },
+    { label: 'Sign with wallet (BIP-322)', activeDetail: 'Linking EVM intent to BTC tx' },
+    { label: 'Broadcast to Bitcoin + Midl', activeDetail: 'Submitting both transactions to network' },
+    { label: 'Awaiting settlement', activeDetail: 'BTC confirmation → Midl EVM execution' },
   ];
-  return labels.map((s, i) => ({
+  return defs.map((s, i) => ({
     label: s.label,
-    detail: s.detail,
+    detail: i < activeStep ? s.doneDetail : i === activeStep ? s.activeDetail : undefined,
     status: i < activeStep ? 'done' : i === activeStep ? 'active' : 'pending',
   }));
 }
@@ -36,10 +41,9 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
   const publicClient = usePublicClient();
 
-  const { addTxIntentionAsync } = useAddTxIntention();
+  const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
-  const { sendBTCTransactionsAsync } = useSendBTCTransactions();
   const { waitForTransactionAsync } = useWaitForTransaction();
 
   // Token balance of the connected wallet
@@ -66,6 +70,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
   const [activeStep, setActiveStep] = useState(0);
   const [btcTxId, setBtcTxId] = useState<string | undefined>();
   const [showProgress, setShowProgress] = useState(false);
+  const [successSummary, setSuccessSummary] = useState<string | undefined>();
 
   const estimateTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -136,6 +141,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
     setSellError(null);
     setActiveStep(0);
     setBtcTxId(undefined);
+    setSuccessSummary(undefined);
     setShowProgress(true);
 
     try {
@@ -172,16 +178,20 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
       setBtcTxId(fbtResult.tx.id);
       setActiveStep(2);
 
-      const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
+      await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setActiveStep(3);
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signedIntention],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setActiveStep(4);
 
       await waitForTransactionAsync({ txId: fbtResult.tx.id });
+      setActiveStep(5);
+      const btcReceived = (Number(estimatedBtc) / 1e8).toFixed(8).replace(/\.?0+$/, '');
+      setSuccessSummary(`Sold ${tokenAmount} ${launch.symbol} for ${btcReceived} BTC`);
+      window.dispatchEvent(new Event('midl:tx-success'));
       onSuccess?.(fbtResult.tx.id);
       setTokenAmount('');
       setPctSelected(null);
@@ -212,11 +222,9 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
         subtitle="Bitcoin-secured · Non-custodial"
         steps={sellSteps}
         error={sellError ?? undefined}
+        btcTxId={btcTxId}
+        successSummary={successSummary}
         onClose={() => { setShowProgress(false); setSellError(null); }}
-        successAction={btcTxId ? {
-          label: 'View BTC Transaction ↗',
-          href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
-        } : undefined}
       />
 
       <div className="space-y-4">
@@ -257,11 +265,14 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
           {/* Token amount input */}
           <div className="relative">
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               value={tokenAmount}
-              onChange={e => handleAmountChange(e.target.value)}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === '' || /^\d*\.?\d*$/.test(v)) handleAmountChange(v);
+              }}
               placeholder="0.00"
-              min="0"
               className="input pr-20 font-mono"
               style={inputExceedsBalance ? { borderColor: 'var(--red-500)' } : {}}
             />
