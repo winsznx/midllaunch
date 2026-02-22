@@ -5,6 +5,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import Redis from 'ioredis';
 import { z } from 'zod';
 import 'dotenv/config';
+import { verifySignature } from '../utils/auth.js';
 
 // Prisma returns BigInt for blockNumber fields — patch for JSON serialization
 (BigInt.prototype as unknown as { toJSON: () => string }).toJSON = function () {
@@ -270,7 +271,7 @@ const metadataSchema = z.object({
   twitterUrl: z.string().url().optional(),
   telegramUrl: z.string().url().optional(),
   websiteUrl: z.string().url().optional(),
-}).strict();
+});
 
 // PATCH /api/launches/:tokenAddress/metadata - Update off-chain metadata
 app.patch('/api/launches/:tokenAddress/metadata', writeLimiter, async (req, res) => {
@@ -280,7 +281,22 @@ app.patch('/api/launches/:tokenAddress/metadata', writeLimiter, async (req, res)
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' });
   }
+  const { auth } = req.body;
+  if (!auth || !auth.address || !auth.message || !auth.signature) {
+    return res.status(401).json({ error: 'Missing auth object' });
+  }
+
   try {
+    const existing = await prisma.launch.findUnique({ where: { tokenAddress: tokenAddress.toLowerCase() } });
+    if (!existing) return res.status(404).json({ error: 'Launch not found' });
+
+    if (!verifySignature(auth.address, auth.message, auth.signature)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    if (auth.address !== existing.creator) {
+      return res.status(403).json({ error: 'Only the creator can edit this' });
+    }
+
     const { metadataCID, imageUrl, description, twitterUrl, telegramUrl, websiteUrl } = parsed.data;
     const launch = await prisma.launch.update({
       where: { tokenAddress: tokenAddress.toLowerCase() },
@@ -369,7 +385,22 @@ app.patch('/api/nft-launches/:address/metadata', writeLimiter, async (req, res) 
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' });
   }
+  const { auth } = req.body;
+  if (!auth || !auth.address || !auth.message || !auth.signature) {
+    return res.status(401).json({ error: 'Missing auth object' });
+  }
+
   try {
+    const existing = await prisma.nftLaunch.findUnique({ where: { contractAddress: addr } });
+    if (!existing) return res.status(404).json({ error: 'NFT launch not found' });
+
+    if (!verifySignature(auth.address, auth.message, auth.signature)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    if (auth.address !== existing.creatorAddress) {
+      return res.status(403).json({ error: 'Only the creator can edit this' });
+    }
+
     const { metadataCID, imageUrl, description, twitterUrl, telegramUrl, websiteUrl } = parsed.data;
     const launch = await prisma.nftLaunch.update({
       where: { contractAddress: addr },
@@ -799,7 +830,7 @@ app.post('/api/pending-metadata', async (req, res) => {
 app.post('/api/launches/:tokenAddress/comments', async (req, res) => {
   try {
     const { tokenAddress } = req.params;
-    const { author, body } = req.body as { author?: string; body?: string };
+    const { author, body, auth } = req.body as any;
 
     if (!author || typeof author !== 'string' || author.length < 10) {
       return res.status(400).json({ error: 'Invalid author address' });
@@ -807,6 +838,17 @@ app.post('/api/launches/:tokenAddress/comments', async (req, res) => {
     if (!body || typeof body !== 'string' || body.trim().length === 0) {
       return res.status(400).json({ error: 'Comment body required' });
     }
+
+    if (!auth || !auth.address || !auth.message || !auth.signature) {
+      return res.status(401).json({ error: 'Missing auth object' });
+    }
+    if (!verifySignature(auth.address, auth.message, auth.signature)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    if (auth.address !== author) {
+      return res.status(403).json({ error: 'Signature address must match author' });
+    }
+
     const trimmed = body.trim().slice(0, 500);
 
     const launch = await prisma.launch.findUnique({
