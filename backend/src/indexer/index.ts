@@ -263,8 +263,8 @@ class MidlLaunchIndexer {
       if (!decoded) return;
 
       const { buyer, intentId, btcAmountSats, tokenAmountBaseUnits, newTotalSupply, newPrice } = decoded.args;
-      const btcAmount = btcAmountSats;
-      const tokenAmount = tokenAmountBaseUnits;
+      const btcAmount = BigInt(btcAmountSats.toString());
+      const tokenAmount = BigInt(tokenAmountBaseUnits.toString());
 
       console.log(`[TokensPurchased] Buyer: ${buyer}, Amount: ${btcAmount.toString()} sats`);
 
@@ -282,7 +282,8 @@ class MidlLaunchIndexer {
         return;
       }
 
-      const supplyBefore = newTotalSupply - tokenAmount;
+      const supplyAfter = BigInt(newTotalSupply.toString());
+      const supplyBefore = supplyAfter - tokenAmount;
 
       // Store purchase
       await prisma.purchase.create({
@@ -295,7 +296,7 @@ class MidlLaunchIndexer {
           newSupply: newTotalSupply.toString(),
           newPrice: newPrice.toString(),
           supplyBefore,
-          supplyAfter: newTotalSupply,
+          supplyAfter,
           blockNumber: BigInt(log.blockNumber),
           txHash: log.transactionHash || '',
           timestamp: new Date(block.timestamp * 1000)
@@ -350,21 +351,25 @@ class MidlLaunchIndexer {
       if (!decoded) return;
 
       const { seller, intentId, btcAmountSats, tokenAmountBaseUnits, newTotalSupply, newPrice } = decoded.args;
+      const btcAmount = BigInt(btcAmountSats.toString());
+      const tokenAmount = BigInt(tokenAmountBaseUnits.toString());
 
-      console.log(`[TokensSold] Seller: ${seller}, BTC returned: ${btcAmountSats.toString()} sats`);
+      console.log(`[TokensSold] Seller: ${seller}, Amount: ${btcAmount.toString()} sats returned`);
 
       const block = await this.provider.getBlock(log.blockNumber);
       if (!block) return;
 
       const launch = await prisma.launch.findUnique({
-        where: { curveAddress: curveAddress.toLowerCase() },
+        where: { curveAddress: curveAddress.toLowerCase() }
       });
+
       if (!launch) {
         console.error(`[TokensSold] Launch not found for curve: ${curveAddress}`);
         return;
       }
 
-      const supplyBefore = newTotalSupply + tokenAmountBaseUnits;
+      const supplyAfter = BigInt(newTotalSupply.toString());
+      const supplyBefore = supplyAfter + tokenAmount;
 
       await prisma.purchase.create({
         data: {
@@ -377,7 +382,7 @@ class MidlLaunchIndexer {
           newSupply: newTotalSupply.toString(),
           newPrice: newPrice.toString(),
           supplyBefore,
-          supplyAfter: newTotalSupply,
+          supplyAfter,
           blockNumber: BigInt(log.blockNumber),
           txHash: log.transactionHash || '',
           timestamp: new Date(block.timestamp * 1000),

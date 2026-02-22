@@ -78,95 +78,95 @@ app.get('/api/launches', async (req, res) => {
     const cacheKey = `launches:${status ?? 'all'}:${sortBy}:${limit}:${offset}`;
 
     const payload = await getCached(cacheKey, 5, async () => {
-    const where: Prisma.LaunchWhereInput = {};
-    if (status === 'ACTIVE') where.status = 'ACTIVE';
-    if (status === 'FINALIZED') where.status = 'FINALIZED';
+      const where: Prisma.LaunchWhereInput = {};
+      if (status === 'ACTIVE') where.status = 'ACTIVE';
+      if (status === 'FINALIZED') where.status = 'FINALIZED';
 
-    let orderBy: Prisma.LaunchOrderByWithRelationInput = { timestamp: 'desc' }; // newest first
+      let orderBy: Prisma.LaunchOrderByWithRelationInput = { timestamp: 'desc' }; // newest first
 
-    if (sortBy === 'price_low') orderBy = { basePrice: 'asc' };
-    if (sortBy === 'price_high') orderBy = { basePrice: 'desc' };
+      if (sortBy === 'price_low') orderBy = { basePrice: 'asc' };
+      if (sortBy === 'price_high') orderBy = { basePrice: 'desc' };
 
-    // Trending and near_cap both require fetching all, sorting in memory, then paginating
-    const isTrending = sortBy === 'trending';
-    const isNearCap = sortBy === 'near_cap';
-    const fetchAll = isTrending || isNearCap;
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      // Trending and near_cap both require fetching all, sorting in memory, then paginating
+      const isTrending = sortBy === 'trending';
+      const isNearCap = sortBy === 'near_cap';
+      const fetchAll = isTrending || isNearCap;
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    const launches = await prisma.launch.findMany({
-      where,
-      orderBy: fetchAll ? undefined : orderBy,
-      take: fetchAll ? undefined : parseIntParam(limit, 20),
-      skip: fetchAll ? undefined : parseIntParam(offset, 0),
-      include: {
-        _count: {
-          select: { purchases: true }
-        },
-        // Always fetch latest purchase for current state (newSupply, newPrice).
-        // For trending we also need btcAmount + timestamp for scoring; no take limit
-        // so all purchases are available for 1h filtering in memory.
-        purchases: {
-          orderBy: { timestamp: 'desc' as const },
-          ...(isTrending ? {} : { take: 1 }),
-          select: { btcAmount: true, newSupply: true, newPrice: true, timestamp: true },
-        },
+      const launches = await prisma.launch.findMany({
+        where,
+        orderBy: fetchAll ? undefined : orderBy,
+        take: fetchAll ? undefined : parseIntParam(limit, 20),
+        skip: fetchAll ? undefined : parseIntParam(offset, 0),
+        include: {
+          _count: {
+            select: { purchases: true }
+          },
+          // Always fetch latest purchase for current state (newSupply, newPrice).
+          // For trending we also need btcAmount + timestamp for scoring; no take limit
+          // so all purchases are available for 1h filtering in memory.
+          purchases: {
+            orderBy: { timestamp: 'desc' as const },
+            ...(isTrending ? {} : { take: 1 }),
+            select: { btcAmount: true, newSupply: true, newPrice: true, timestamp: true },
+          },
+        }
+      });
+
+      // For trending: score = (btcVolume_1h × 0.4) + (buyers_1h × 0.3) + (recency × 0.3)
+      // Then sort + paginate in memory
+      let result = launches;
+      if (isTrending) {
+        const now = Date.now();
+        const scored = launches.map(l => {
+          const allPurchases = Array.isArray(l.purchases) ? l.purchases : [];
+          const recentPurchases = allPurchases.filter(
+            p => new Date(p.timestamp).getTime() >= oneHourAgo.getTime()
+          );
+          const volume1h = recentPurchases.reduce((s, p) => s + Number(p.btcAmount), 0);
+          const buyers1h = recentPurchases.length;
+          const ageMs = now - new Date(l.timestamp).getTime();
+          const recencyScore = Math.max(0, 1 - ageMs / (7 * 24 * 60 * 60 * 1000)); // decay over 7d
+          const score = volume1h * 0.4 + buyers1h * 0.3 + recencyScore * 0.3;
+          return { ...l, _trendScore: score };
+        });
+        scored.sort((a, b) => b._trendScore - a._trendScore);
+        const skip = parseIntParam(offset, 0);
+        const take = parseIntParam(limit, 20);
+        result = scored.slice(skip, skip + take) as typeof launches;
+      } else if (isNearCap) {
+        // Sort by fill ratio (currentSupply / supplyCap) descending — BigInt to avoid float loss
+        const withRatio = launches.map(l => {
+          const supply = BigInt(l.purchases[0]?.newSupply ?? '0');
+          const cap = BigInt(l.supplyCap);
+          const ratioBP = cap > BigInt(0) ? (supply * BigInt(10_000)) / cap : BigInt(0);
+          return { ...l, _fillRatioBP: ratioBP };
+        });
+        withRatio.sort((a, b) => Number(b._fillRatioBP - a._fillRatioBP));
+        const skip = parseIntParam(offset, 0);
+        const take = parseIntParam(limit, 20);
+        result = withRatio.slice(skip, skip + take) as typeof launches;
       }
-    });
 
-    // For trending: score = (btcVolume_1h × 0.4) + (buyers_1h × 0.3) + (recency × 0.3)
-    // Then sort + paginate in memory
-    let result = launches;
-    if (isTrending) {
-      const now = Date.now();
-      const scored = launches.map(l => {
-        const allPurchases = Array.isArray(l.purchases) ? l.purchases : [];
-        const recentPurchases = allPurchases.filter(
-          p => new Date(p.timestamp).getTime() >= oneHourAgo.getTime()
-        );
-        const volume1h = recentPurchases.reduce((s, p) => s + Number(p.btcAmount), 0);
-        const buyers1h = recentPurchases.length;
-        const ageMs = now - new Date(l.timestamp).getTime();
-        const recencyScore = Math.max(0, 1 - ageMs / (7 * 24 * 60 * 60 * 1000)); // decay over 7d
-        const score = volume1h * 0.4 + buyers1h * 0.3 + recencyScore * 0.3;
-        return { ...l, _trendScore: score };
+      // Extract current state from latest purchase (first entry — desc order)
+      const launchesWithProgress = result.map(launch => {
+        const latestPurchase = Array.isArray(launch.purchases) ? launch.purchases[0] : undefined;
+        const currentSupply = latestPurchase?.newSupply ?? '0';
+        const currentPrice = latestPurchase?.newPrice ?? launch.basePrice;
+        return {
+          ...launch,
+          purchases: undefined, // don't leak purchase list in collection endpoint
+          purchaseCount: launch._count.purchases,
+          currentSupply,
+          currentPrice,
+          progress: calculateProgress(currentSupply, launch.supplyCap),
+        };
       });
-      scored.sort((a, b) => b._trendScore - a._trendScore);
-      const skip = parseIntParam(offset, 0);
-      const take = parseIntParam(limit, 20);
-      result = scored.slice(skip, skip + take) as typeof launches;
-    } else if (isNearCap) {
-      // Sort by fill ratio (currentSupply / supplyCap) descending — BigInt to avoid float loss
-      const withRatio = launches.map(l => {
-        const supply = BigInt(l.purchases[0]?.newSupply ?? '0');
-        const cap = BigInt(l.supplyCap);
-        const ratioBP = cap > BigInt(0) ? (supply * BigInt(10_000)) / cap : BigInt(0);
-        return { ...l, _fillRatioBP: ratioBP };
-      });
-      withRatio.sort((a, b) => Number(b._fillRatioBP - a._fillRatioBP));
-      const skip = parseIntParam(offset, 0);
-      const take = parseIntParam(limit, 20);
-      result = withRatio.slice(skip, skip + take) as typeof launches;
-    }
 
-    // Extract current state from latest purchase (first entry — desc order)
-    const launchesWithProgress = result.map(launch => {
-      const latestPurchase = Array.isArray(launch.purchases) ? launch.purchases[0] : undefined;
-      const currentSupply = latestPurchase?.newSupply ?? '0';
-      const currentPrice = latestPurchase?.newPrice ?? launch.basePrice;
       return {
-        ...launch,
-        purchases: undefined, // don't leak purchase list in collection endpoint
-        purchaseCount: launch._count.purchases,
-        currentSupply,
-        currentPrice,
-        progress: calculateProgress(currentSupply, launch.supplyCap),
+        launches: launchesWithProgress,
+        total: await prisma.launch.count({ where }),
       };
-    });
-
-    return {
-      launches: launchesWithProgress,
-      total: await prisma.launch.count({ where }),
-    };
     }); // end getCached
 
     res.json(payload);
@@ -263,12 +263,12 @@ app.get('/api/activity', async (req, res) => {
 
 // Zod schemas for metadata validation
 const metadataSchema = z.object({
-  metadataCID:  z.string().optional(),
-  imageUrl:     z.string().url().optional(),
-  description:  z.string().max(1000).optional(),
-  twitterUrl:   z.string().url().optional(),
-  telegramUrl:  z.string().url().optional(),
-  websiteUrl:   z.string().url().optional(),
+  metadataCID: z.string().optional(),
+  imageUrl: z.string().url().optional(),
+  description: z.string().max(1000).optional(),
+  twitterUrl: z.string().url().optional(),
+  telegramUrl: z.string().url().optional(),
+  websiteUrl: z.string().url().optional(),
 }).strict();
 
 // PATCH /api/launches/:tokenAddress/metadata - Update off-chain metadata
@@ -590,9 +590,9 @@ app.get('/api/user/:address/holdings', async (req, res) => {
       const totalTokens = h.totalTokens;
       const totalInvested = h.totalBTCSpent;
       const avgBuyPriceSats = totalTokens > BigInt(0)
-        ? Number(totalInvested) / Number(totalTokens)
+        ? Number((totalInvested * BigInt(10000)) / totalTokens) / 10000
         : 0;
-      const currentValueSats = Number(totalTokens) * currentPriceSats;
+      const currentValueSats = Number((totalTokens * BigInt(currentPriceSats)) / BigInt(1000000000000000000));
       const unrealizedPnlSats = currentValueSats - Number(totalInvested);
       const unrealizedPnlPct = Number(totalInvested) > 0
         ? (unrealizedPnlSats / Number(totalInvested)) * 100
