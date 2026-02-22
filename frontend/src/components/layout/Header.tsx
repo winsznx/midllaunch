@@ -9,6 +9,8 @@ import { useTheme } from '@/lib/hooks/useTheme';
 import { midlConfig } from '@/lib/midl/config';
 import { MobileMenu } from './MobileMenu';
 import { GlobalSearch } from './GlobalSearch';
+import toast from 'react-hot-toast';
+
 function formatAddress(address: string): string {
   if (!address) return '';
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -94,9 +96,6 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full" style={{ borderBottom: '1px solid var(--bg-border)' }}>
-      {/* Activity ticker */}
-      <ActivityTicker />
-
       {/* Main nav row */}
       <div
         className="w-full border-b backdrop-blur-md"
