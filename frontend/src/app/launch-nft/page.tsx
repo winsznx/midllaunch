@@ -191,6 +191,28 @@ export default function LaunchNftPage() {
       await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setDeployStage(5);
 
+      // Store pending metadata now — before broadcasting — so the indexer can link it
+      // when it processes the CollectionCreated event.
+      if (metadataCID) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/pending-metadata`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              btcTxId: fbtResult.tx.id,
+              metadataCID,
+              name: form.name,
+              symbol: form.symbol.toUpperCase(),
+              ...(imageCID ? { imageCID } : {}),
+              ...(form.description ? { description: form.description } : {}),
+              ...(form.twitterUrl ? { twitterUrl: form.twitterUrl } : {}),
+              ...(form.telegramUrl ? { telegramUrl: form.telegramUrl } : {}),
+              ...(form.websiteUrl ? { websiteUrl: form.websiteUrl } : {}),
+            }),
+          });
+        } catch { /* non-critical; indexer can still index without enriched metadata */ }
+      }
+
       const signedTx = txIntentionsRef.current[0]?.signedEvmTransaction as `0x${string}`;
       if (signedTx) setEvmTxHash(keccak256(signedTx));
 
@@ -205,23 +227,6 @@ export default function LaunchNftPage() {
       setDeploySuccessSummary(`Deployed ${form.name} ($${form.symbol}) Collection`);
       window.dispatchEvent(new Event('midl:tx-success'));
       toast.success('NFT Collection deployed!');
-
-      if (metadataCID) {
-        try {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/nft-launches/pending/metadata`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              metadataCID,
-              imageUrl: imageCID ? `https://gateway.pinata.cloud/ipfs/${imageCID}` : undefined,
-              description: form.description,
-              twitterUrl: form.twitterUrl || undefined,
-              telegramUrl: form.telegramUrl || undefined,
-              websiteUrl: form.websiteUrl || undefined,
-            }),
-          });
-        } catch { /* metadata upload is non-critical */ }
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Deployment failed';
       setDeployError(msg);
