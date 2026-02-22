@@ -19,6 +19,7 @@ export function useLaunch(tokenAddress: string | undefined) {
     queryKey: ['launch', tokenAddress],
     queryFn: () => apiClient.getLaunch(tokenAddress!),
     enabled: !!tokenAddress,
+    refetchInterval: 30_000,
   });
 }
 
