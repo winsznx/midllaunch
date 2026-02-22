@@ -39,7 +39,7 @@ function ActivityTicker() {
 
   return (
     <div
-      className="w-full border-b overflow-hidden"
+      className="w-full border-b overflow-hidden rounded-t-2xl"
       style={{ borderColor: 'var(--bg-border)', background: 'transparent', height: '28px' }}
     >
       <div className="flex items-center h-full gap-2 px-3">
@@ -149,7 +149,7 @@ export function Header() {
   return (
     <header className="sticky top-4 z-40 w-full px-4 md:px-6 mb-8 mt-2 transition-all duration-300">
       <div
-        className="mx-auto max-w-6xl w-full flex flex-col overflow-hidden rounded-2xl shadow-xl backdrop-blur-md"
+        className="mx-auto max-w-6xl w-full flex flex-col rounded-2xl shadow-xl backdrop-blur-md"
         style={{
           background: 'var(--bg-glass)',
           border: '1px solid var(--bg-border)',
