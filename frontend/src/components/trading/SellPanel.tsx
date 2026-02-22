@@ -42,6 +42,8 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
   const publicClient = usePublicClient();
 
   const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
+  const txIntentionsRef = useRef(txIntentions);
+  useEffect(() => { txIntentionsRef.current = txIntentions; }, [txIntentions]);
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { waitForTransactionAsync } = useWaitForTransaction();
@@ -182,7 +184,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
       setActiveStep(3);
 
       await publicClient?.sendBTCTransactions({
-        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+        serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setActiveStep(4);
@@ -309,8 +311,8 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
                       color: priceImpact > 5
                         ? 'var(--red-500)'
                         : priceImpact > 2
-                        ? '#eab308'
-                        : 'var(--green-500)',
+                          ? '#eab308'
+                          : 'var(--green-500)',
                     }}
                   >
                     -{priceImpact.toFixed(2)}%

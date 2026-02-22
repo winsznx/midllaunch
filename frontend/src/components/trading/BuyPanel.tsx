@@ -43,6 +43,8 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
   const publicClient = usePublicClient();
 
   const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
+  const txIntentionsRef = useRef(txIntentions);
+  useEffect(() => { txIntentionsRef.current = txIntentions; }, [txIntentions]);
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { waitForTransactionAsync } = useWaitForTransaction();
@@ -59,6 +61,11 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
   const [showProgress, setShowProgress] = useState(false);
   const [successSummary, setSuccessSummary] = useState<string | undefined>();
   const estimateTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Minimum BTC needed to mint at least 1 whole token at the current price.
+  // The contract uses integer division so amounts below this produce 0 tokens and revert on-chain.
+  const minBuySats = BigInt(launch.currentPrice ?? '0');
+  const minBuyBTC = (Number(minBuySats) / 1e8).toFixed(8).replace(/\.?0+$/, '');
 
   useEffect(() => {
     clearTimeout(estimateTimer.current);
@@ -97,10 +104,13 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
 
   const remainingSupply = BigInt(launch.supplyCap) - BigInt(launch.currentSupply || '0');
   const exceedsCap = estimatedTokens > BigInt(0) && estimatedTokens > remainingSupply;
+  const belowMinimum =
+    !!btcAmount && parseFloat(btcAmount) > 0 && estimatedTokens === BigInt(0) && minBuySats > BigInt(0);
 
   const handleBuy = async () => {
     if (!paymentAccount) { setBuyError('Connect your wallet first'); return; }
     if (!btcAmount || parseFloat(btcAmount) <= 0) { setBuyError('Enter a BTC amount'); return; }
+    if (belowMinimum) { setBuyError(`Amount too small. Minimum buy is ${minBuyBTC} BTC to receive at least 1 ${launch.symbol}`); return; }
     if (exceedsCap) { setBuyError(`Amount exceeds remaining supply (${formatTokenAmount(remainingSupply.toString())} ${launch.symbol} left)`); return; }
 
     setIsBuying(true);
@@ -145,7 +155,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
       setActiveStep(3);
 
       await publicClient?.sendBTCTransactions({
-        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+        serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setActiveStep(4);
@@ -233,6 +243,23 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
             </span>
           </div>
 
+          {/* Below minimum warning */}
+          {belowMinimum && (
+            <div
+              className="rounded-lg px-3 py-2 text-xs leading-relaxed"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: 'var(--red-500)' }}
+            >
+              Amount too small. Minimum is <span className="font-mono font-semibold">{minBuyBTC} BTC</span> to mint at least 1 {launch.symbol} at the current price.
+            </div>
+          )}
+
+          {/* Min buy hint when input empty */}
+          {!btcAmount && minBuySats > BigInt(0) && (
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              Min buy: <span className="font-mono">{minBuyBTC} BTC</span> (1 {launch.symbol})
+            </p>
+          )}
+
           {/* Estimate */}
           {estimatedTokens > BigInt(0) && (
             <div className="space-y-1.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -312,7 +339,7 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
           {/* Buy button */}
           <button
             onClick={handleBuy}
-            disabled={isBuying || !btcAmount || parseFloat(btcAmount) <= 0 || exceedsCap}
+            disabled={isBuying || !btcAmount || parseFloat(btcAmount) <= 0 || exceedsCap || belowMinimum}
             className="btn btn-primary w-full py-3 font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isBuying ? (
