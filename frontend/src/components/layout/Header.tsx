@@ -169,17 +169,21 @@ export function Header() {
             </Link>
 
             {/* Nav — scrollable on md */}
-            <nav className="hidden md:flex gap-0.5 overflow-x-auto scrollbar-none">
+            <nav
+              className="hidden md:flex items-center gap-1 p-1 rounded-xl overflow-x-auto scrollbar-none"
+              style={{ background: 'var(--bg-elevated)' }}
+            >
               {NAV_LINKS.map(({ href, label }) => {
                 const active = pathname === href || pathname.startsWith(href + '/');
                 return (
                   <Link
                     key={href}
                     href={href}
-                    className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap"
                     style={{
-                      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      background: active ? 'var(--bg-elevated)' : 'transparent',
+                      color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                      background: active ? 'var(--bg-border)' : 'transparent',
+                      boxShadow: active ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
                     }}
                   >
                     {label}
