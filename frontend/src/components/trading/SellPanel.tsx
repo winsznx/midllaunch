@@ -101,13 +101,17 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
     estimateTimer.current = setTimeout(async () => {
       try {
         const tokenAmountBaseUnits = BigInt(Math.floor(parseFloat(tokenAmount) * 1e18));
-        const currentSupply = BigInt(launch.currentSupply || '0');
+        const onChainSupply = await publicClient!.readContract({
+          address: launch.tokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: 'totalSupply',
+        }) as bigint;
 
         const result = await publicClient.readContract({
           address: launch.curveAddress as `0x${string}`,
           abi: BONDING_CURVE_ABI,
           functionName: 'calculateSaleReturn',
-          args: [tokenAmountBaseUnits, currentSupply],
+          args: [tokenAmountBaseUnits, onChainSupply],
         }) as bigint;
 
         setEstimatedBtc(result);

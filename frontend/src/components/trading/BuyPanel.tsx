@@ -4,7 +4,7 @@ import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
 import { usePublicClient } from 'wagmi';
-import { encodeFunctionData, keccak256 } from 'viem';
+import { encodeFunctionData, erc20Abi, keccak256 } from 'viem';
 import { BONDING_CURVE_ABI, btcToWei, btcToSatoshis } from '@/lib/contracts/config';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import type { Launch } from '@/types';
@@ -81,11 +81,16 @@ export function BuyPanel({ launch, onSuccess, defaultBtcAmount }: BuyPanelProps)
         // The buy() function internally converts msg.value (wei) to sats —
         // the estimate call doesn't go through buy(), so we pass sats here.
         const sats = btcToSatoshis(btcAmount);
+        const onChainSupply = await publicClient!.readContract({
+          address: launch.tokenAddress as `0x${string}`,
+          abi: erc20Abi,
+          functionName: 'totalSupply',
+        }) as bigint;
         const result = await publicClient.readContract({
           address: launch.curveAddress as `0x${string}`,
           abi: BONDING_CURVE_ABI,
           functionName: 'calculatePurchaseReturn',
-          args: [sats, BigInt(launch.currentSupply || '0')],
+          args: [sats, onChainSupply],
         }) as bigint;
         setEstimatedTokens(result);
 
