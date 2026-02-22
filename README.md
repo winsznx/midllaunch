@@ -20,6 +20,68 @@ A pump.fun-style bonding curve launchpad on Bitcoin L2 (Midl Network). Create fu
 
 ---
 
+## End-to-End Lifecycle
+
+```mermaid
+graph TD
+    A[User connects BTC wallet<br/>Xverse / Leather] --> B{Action}
+
+    B --> C[Create token launch]
+    B --> D[Buy tokens]
+    B --> E[Sell tokens]
+    B --> F[Launch NFT collection]
+    B --> G[Mint / trade NFTs]
+    B --> H[Social bot command on X]
+
+    C --> C1[Upload image + metadata<br/>to IPFS via Pinata]
+    C1 --> C2[Store pending metadata<br/>POST /api/pending-metadata]
+    C2 --> C3[Sign PSBT with LaunchFactory intent]
+    C3 --> C4[BTC tx broadcast + confirmed]
+    C4 --> C5[Midl EVM: LaunchFactory deploys<br/>LaunchToken + BondingCurvePrimaryMarket]
+    C5 --> C6[Indexer picks up LaunchCreated event<br/>writes Launch to SQLite + links IPFS metadata]
+    C6 --> C7[Redis pub/sub broadcasts launch_created]
+    C7 --> C8[WS server fans out to clients<br/>token appears on /launches]
+
+    D --> D1[Enter BTC amount + slippage tolerance]
+    D1 --> D2[Sign PSBT with buy intent]
+    D2 --> D3[BTC sent to TSS vault]
+    D3 --> D4[Bitcoin confirmation]
+    D4 --> D5[Midl EVM: BondingCurve.buy executes<br/>tokens minted to buyer EVM address]
+    D5 --> D6[Indexer picks up TokensPurchased event<br/>writes Purchase to SQLite]
+    D6 --> D7[Broadcasts tokens_purchased + price_update]
+    D7 --> D8[Frontend chart + live price update via WS]
+    D8 --> D9{Supply cap reached?}
+    D9 -->|Yes| D10[status = FINALIZED<br/>Broadcasts launch_finalized]
+    D9 -->|No| D8
+
+    E --> E1[Enter token amount to sell]
+    E1 --> E2[Sign PSBT with sell intent]
+    E2 --> E3[Midl EVM: BondingCurve.sell<br/>tokens burned · BTC released from vault]
+    E3 --> E4[Indexer picks up TokensSold event<br/>writes SELL record to SQLite]
+    E4 --> E5[Broadcasts tokens_sold + price_update]
+
+    F --> F1[Upload collection metadata to IPFS]
+    F1 --> F2[Sign PSBT with NftFactory intent]
+    F2 --> F3[Midl EVM: NftFactory deploys MidlNFT contract]
+    F3 --> F4[Collection appears on /launches NFT tab]
+
+    G --> G1[User mints NFT — BTC to TSS vault]
+    G1 --> G2[Midl EVM: MidlNFT.mint called]
+    G2 --> G3[POST /api/nft-launches/:addr/mints<br/>DB updated · nft_minted broadcast]
+    G3 --> G4[Secondary market via NftMarketplace contract<br/>list / buy / delist]
+
+    H --> H1[Bot parses X mention<br/>buy · sell · launch · portfolio]
+    H1 --> H2[Bot creates signing job<br/>POST /api/bot/jobs]
+    H2 --> H3[Bot replies with link to /bot/sign/:jobId]
+    H3 --> H4[User connects wallet · signs PSBT on sign page]
+    H4 --> H5[POST /api/bot/jobs/:jobId/execute]
+    H5 --> H6[BTC tx confirmed on-chain]
+    H6 --> H7[POST /api/bot/jobs/:jobId/confirm]
+    H7 --> H8[Bot polls /recently-confirmed<br/>posts receipt reply on X]
+```
+
+---
+
 ## Deployed Contracts (Midl Staging)
 
 | Contract | Address |
@@ -42,40 +104,6 @@ A pump.fun-style bonding curve launchpad on Bitcoin L2 (Midl Network). Create fu
 - Blockscout: https://blockscout.staging.midl.xyz/address/0x9E312623C309d749Ceb50a954E0094502808288d
 - EVM tx: https://blockscout.staging.midl.xyz/tx/0x4138c73037fd55e70902ba3b8d93b92537f347592c9416968395c9797658ac1a
 - BTC tx: https://mempool.staging.midl.xyz/tx/ab19c2305f9072bb8e6eb82ca3ead941d0f80dd5cc660b414a6f339736610fe6
-
----
-
-## Project Structure
-
-```
-midllaunch/
-├── contracts/                    # Solidity smart contracts
-│   ├── LaunchFactory.sol         # Factory for deploying token launches
-│   ├── LaunchToken.sol           # ERC20 with immutable supply cap
-│   ├── BondingCurvePrimaryMarket.sol  # Linear curve, O(1) closed-form math
-│   ├── NftFactory.sol            # NFT collection factory
-│   ├── MidlNFT.sol               # ERC721 with mint price + ReentrancyGuard
-│   └── NftMarketplace.sol        # Secondary market (list/buy/delist)
-├── test/
-│   └── MidlLaunch.test.ts        # 24 contract tests
-├── scripts/
-│   ├── deploy.ts                 # Deploy all contracts to Midl staging
-│   └── test-launch.ts            # Create demo launch + purchase
-├── deployments/                  # Hardhat deploy artifacts (per-contract JSON)
-├── backend/                      # Express API + WebSocket server
-│   └── src/
-│       ├── api/index.ts          # REST endpoints + Zod validation
-│       ├── prisma/               # SQLite schema + Prisma ORM
-│       ├── indexer/              # On-chain event indexer
-│       └── ws/                   # WebSocket server (Redis pub/sub)
-├── frontend/                     # Next.js 14 App Router frontend
-│   └── src/
-│       ├── app/                  # Pages (home, browse, launch detail, create, portfolio, NFT, bot)
-│       ├── components/           # UI components, trading widgets, layout
-│       ├── lib/                  # API client, hooks, wallet utils, IPFS upload
-│       └── types/                # Shared TypeScript types
-└── README.md
-```
 
 ---
 
@@ -193,13 +221,13 @@ REST API served at `http://localhost:4000`.
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/user/:address/holdings` | Portfolio holdings + P&L |
-| `GET /api/user/:address/activity` | Purchase history |
+| `GET /api/user/:address/activity` | Full activity (purchases, launches created, NFT mints) |
 
 **Platform:**
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/activity` | Global activity feed |
+| `GET /api/activity` | Global activity feed (last 50 buys) |
 | `GET /api/stats` | Platform stats |
 | `GET /health` | Health check |
 
@@ -221,7 +249,7 @@ REST API served at `http://localhost:4000`.
 | `POST /api/bot/jobs/expire-old` | Expire stale jobs |
 | `GET /api/bot/stats` | Bot stats |
 
-**WebSocket** (port 8080): broadcasts `purchase`, `price_update`, `nft_minted` events.
+**WebSocket** (port 8080): broadcasts `launch_created`, `tokens_purchased`, `tokens_sold`, `price_update`, `comment_posted`, `launch_finalized`, `nft_minted` events.
 
 ---
 
@@ -229,27 +257,35 @@ REST API served at `http://localhost:4000`.
 
 | Route | Description |
 |-------|-------------|
-| `/` | Hero, stats, trending tokens, recent activity, NFT teaser |
-| `/launches` | Browse tokens + NFTs, sort/filter, live search |
-| `/launch/[address]` | Token detail: bonding curve + price history chart, buy/sell widget, transactions, comments, holders |
-| `/create` | Create token launch with IPFS metadata upload |
-| `/launch-nft` | Create NFT collection launch |
+| `/` | Hero, platform stats, trending tokens, live activity feed, NFT teaser |
+| `/launches` | Browse tokens + NFT collections — hero carousel, sort/filter, live search |
+| `/launch/[address]` | Token detail: bonding curve chart, price history, buy/sell widget, trade history, comments |
 | `/nft/[address]` | NFT collection: mint panel, your-NFTs gallery, secondary market listings |
-| `/portfolio` | Holdings with unrealized P&L, activity history |
+| `/create` | Create token launch — IPFS metadata upload, curve parameters |
+| `/launch-nft` | Create NFT collection launch |
+| `/portfolio` | Holdings with unrealized P&L and full activity history |
 | `/transactions` | Transaction lifecycle tracker |
+| `/my-tokens` | Token launches created by connected wallet, with live stats |
+| `/referral` | Referral link sharing (wallet address as referral ID) |
 | `/bot/sign/[jobId]` | Wallet signing page for bot-initiated transactions |
-| `/link-x` | Link X (Twitter) account to wallet |
 | `/bot-demo` | Interactive bot demo |
+| `/link-x` | Link X (Twitter) account to wallet address |
+| `/how-it-works` | Protocol documentation — execution model, settlement mechanics, trust assumptions |
+| `/terms` | Terms of service |
+| `/privacy` | Privacy policy |
+| `/risk-disclosure` | Risk disclosure |
 
 **Key features:**
 - Real-time buy feed via WebSocket
-- Bonding curve SVG chart + price history line chart
+- Bonding curve SVG chart + price history line chart (5m / 1h / 4h / 1d intervals)
 - One-click BTC purchase and sell via SatoshiKit (supports Xverse, Leather, and other BTC wallets)
+- Live activity ticker in header
 - Toast notifications for all user actions
 - Canvas-confetti on token graduation (100% supply sold)
 - Page transition animations
 - Mobile-first with bottom navigation bar and sidebar
 - IPFS/Pinata image upload in create forms
+- First-visit disclaimer modal (localStorage-gated)
 
 ---
 
