@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLaunch, usePurchases, useComments, useCandles } from '@/lib/hooks/useLaunches';
@@ -13,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAccounts } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { wsClient } from '@/lib/websocket/client';
 import type { WebSocketMessage } from '@/types';
 import { ipfsUriToHttp } from '@/lib/ipfs/upload';
@@ -302,7 +302,21 @@ function DetailTabs({
   tokenAddress: string;
   authorAddress?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<'comments' | 'transactions' | 'holders'>('comments');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const tabParam = searchParams.get('tab');
+
+  const activeTab: 'comments' | 'transactions' | 'holders' =
+    (tabParam === 'comments' || tabParam === 'transactions' || tabParam === 'holders')
+      ? tabParam
+      : 'comments';
+
+  const setActiveTab = (newTab: 'comments' | 'transactions' | 'holders') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', newTab);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   // Compute holders from purchases
   const holdersMap = new Map<string, { tokens: bigint; btcSpent: bigint; count: number }>();
@@ -980,13 +994,15 @@ export default function LaunchDetailPage() {
 
           {/* Tabbed section: Comments / Transactions / Holders */}
           <ErrorBoundary>
-            <DetailTabs
-              launch={launch}
-              purchases={purchases}
-              liveEvents={liveEvents}
-              tokenAddress={address}
-              authorAddress={paymentAccount?.address}
-            />
+            <Suspense fallback={<div className="h-64 animate-pulse rounded-xl" style={{ background: 'var(--bg-surface)' }} />}>
+              <DetailTabs
+                launch={launch}
+                purchases={purchases}
+                liveEvents={liveEvents}
+                tokenAddress={address}
+                authorAddress={paymentAccount?.address}
+              />
+            </Suspense>
           </ErrorBoundary>
 
           {/* Contract addresses */}

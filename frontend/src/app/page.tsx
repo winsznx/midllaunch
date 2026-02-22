@@ -18,7 +18,7 @@ export default function Home() {
         {/* SECTION 1 — Hero (Proof-First) */}
         <section className="py-24 md:py-32 xl:py-40 max-w-5xl mx-auto border-x border-border px-4 sm:px-8 xl:px-12 bg-surface">
           <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tighter mb-6 uppercase leading-[1.05]" style={{ fontStretch: 'expanded' }}>
-            Bitcoin-Native Token Issuance.<br />Live on Midl.
+            Bitcoin-Native Launchpad.<br />Live on Midl.
           </h1>
           <p className="text-lg md:text-xl mb-12 tracking-wide font-medium max-w-2xl" style={{ color: 'var(--text-secondary)' }}>
             Linear bonding curve launches. Settled in BTC. Verifiable on-chain.

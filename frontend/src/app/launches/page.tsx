@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useLaunches, useNftLaunches } from '@/lib/hooks/useLaunches';
 import { TokenCard } from '@/components/ui/TokenCard';
 import { NftCard } from '@/components/tokens/NftCard';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { LaunchStatus, Launch, NftLaunchSummary } from '@/types';
@@ -257,9 +258,30 @@ function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
   );
 }
 
-export default function LaunchesPage() {
-  const [assetType, setAssetType] = useState<AssetType>('tokens');
-  const [activeTab, setActiveTab] = useState(0);
+function LaunchesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const urlAsset = searchParams.get('asset') as AssetType | null;
+  const urlSort = searchParams.get('sort');
+
+  const assetType: AssetType = (urlAsset === 'tokens' || urlAsset === 'nfts') ? urlAsset : 'tokens';
+  const activeTab = urlSort ? Math.max(0, TABS.findIndex(t => t.sort === urlSort)) : 0;
+
+  const setAssetType = (newAsset: AssetType) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('asset', newAsset);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const setActiveTab = (index: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const sort = TABS[index]?.sort;
+    if (sort) params.set('sort', sort);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
   const [search, setSearch] = useState('');
   const [devBuyPending, setDevBuyPending] = useState<{ btcAmount: string } | null>(null);
 
@@ -687,5 +709,13 @@ export default function LaunchesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function LaunchesPage() {
+  return (
+    <Suspense fallback={null}>
+      <LaunchesContent />
+    </Suspense>
   );
 }
