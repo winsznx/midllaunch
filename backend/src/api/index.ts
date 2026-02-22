@@ -63,7 +63,6 @@ const readLimiter = rateLimit({ windowMs: 60_000, max: 100, standardHeaders: tru
 const writeLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
 
 // Middleware
-app.set('trust proxy', 1);
 app.use(cors({ origin: CORS_ORIGINS.length === 1 ? CORS_ORIGINS[0] : CORS_ORIGINS }));
 app.use(express.json());
 app.use('/api', readLimiter);
@@ -582,18 +581,23 @@ app.get('/api/user/:address/holdings', async (req, res) => {
         });
       }
       const holding = holdingsMap.get(launchId)!;
-      holding.totalTokens += BigInt(purchase.tokenAmount);
-      holding.totalBTCSpent += BigInt(purchase.btcAmount);
+      if (purchase.tradeType === 'SELL') {
+        holding.totalTokens -= BigInt(purchase.tokenAmount);
+        holding.totalBTCSpent -= BigInt(purchase.btcAmount);
+      } else {
+        holding.totalTokens += BigInt(purchase.tokenAmount);
+        holding.totalBTCSpent += BigInt(purchase.btcAmount);
+      }
       holding.purchaseCount += 1;
     });
 
-    const holdings = Array.from(holdingsMap.values()).map(h => {
+    const holdings = Array.from(holdingsMap.values()).filter(h => h.totalTokens > BigInt(0)).map(h => {
       const latestPurchase = h.launch.purchases[0];
       const currentPriceSats = Number(latestPurchase?.newPrice ?? h.launch.basePrice);
       const totalTokens = h.totalTokens;
       const totalInvested = h.totalBTCSpent;
       const avgBuyPriceSats = totalTokens > BigInt(0)
-        ? Number((totalInvested * BigInt(10000)) / totalTokens) / 10000
+        ? Number((totalInvested * BigInt('1000000000000000000')) / totalTokens)
         : 0;
       const currentValueSats = Number((totalTokens * BigInt(currentPriceSats)) / BigInt(1000000000000000000));
       const unrealizedPnlSats = currentValueSats - Number(totalInvested);
@@ -838,7 +842,7 @@ app.get('/api/launches/trending', async (req, res) => {
         where: { status: 'ACTIVE' },
         include: {
           purchases: {
-            select: { btcAmount: true, buyer: true, timestamp: true },
+            select: { btcAmount: true, buyer: true, timestamp: true, newSupply: true, newPrice: true },
           },
         },
       });
@@ -859,9 +863,9 @@ app.get('/api/launches/trending', async (req, res) => {
           ...l,
           purchases: undefined,
           purchaseCount: l.purchases.length,
-          currentSupply: latestPurchase ? '0' : '0',
-          currentPrice: l.basePrice,
-          progress: 0,
+          currentSupply: latestPurchase?.newSupply ?? '0',
+          currentPrice: latestPurchase?.newPrice ?? l.basePrice,
+          progress: calculateProgress(latestPurchase?.newSupply ?? '0', l.supplyCap),
           _score: score,
         };
       });
