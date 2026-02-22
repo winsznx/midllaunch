@@ -12,6 +12,7 @@ import 'dotenv/config';
 };
 
 const app = express();
+app.set('trust proxy', 1);
 const prisma = new PrismaClient();
 
 // Redis for WS broadcasts — graceful degradation if unavailable
@@ -109,7 +110,7 @@ app.get('/api/launches', async (req, res) => {
           purchases: {
             orderBy: { timestamp: 'desc' as const },
             ...(isTrending ? {} : { take: 1 }),
-            select: { btcAmount: true, newSupply: true, newPrice: true, timestamp: true },
+
           },
         }
       });
@@ -208,7 +209,7 @@ app.get('/api/launches/graduating', async (req, res) => {
         purchases: {
           orderBy: { timestamp: 'desc' as const },
           take: 1,
-          select: { newSupply: true, newPrice: true },
+
         },
       },
     });
@@ -240,7 +241,7 @@ app.get('/api/activity', async (req, res) => {
         orderBy: { timestamp: 'desc' },
         take: 50,
         include: {
-          launch: { select: { tokenAddress: true, name: true, symbol: true } },
+          launch: true,
         },
       });
       return purchases.map(p => ({
@@ -555,7 +556,7 @@ app.get('/api/user/:address/holdings', async (req, res) => {
             purchases: {
               orderBy: { timestamp: 'desc' as const },
               take: 1,
-              select: { newSupply: true, newPrice: true },
+
             },
           }
         },
