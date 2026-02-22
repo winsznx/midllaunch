@@ -9,10 +9,6 @@ import { useTheme } from '@/lib/hooks/useTheme';
 import { midlConfig } from '@/lib/midl/config';
 import { MobileMenu } from './MobileMenu';
 import { GlobalSearch } from './GlobalSearch';
-import { useGlobalActivity } from '@/lib/hooks/useLaunches';
-import toast from 'react-hot-toast';
-import { Zap } from 'lucide-react';
-
 function formatAddress(address: string): string {
   if (!address) return '';
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -27,56 +23,6 @@ const NAV_LINKS = [
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/transactions', label: 'Txns' },
 ];
-
-function ActivityTicker() {
-  const { data } = useGlobalActivity(20);
-  const events = data?.events ?? [];
-
-  if (events.length === 0) return null;
-
-  // Duplicate for seamless loop
-  const items = [...events, ...events];
-
-  return (
-    <div
-      className="w-full border-b overflow-hidden"
-      style={{ borderColor: 'var(--bg-border)', background: 'var(--bg-base)', height: '28px' }}
-    >
-      <div className="flex items-center h-full gap-2 px-3">
-        <div className="flex items-center gap-1 flex-shrink-0" style={{ color: 'var(--orange-500)' }}>
-          <Zap size={10} />
-          <span className="text-[10px] font-semibold uppercase tracking-wider">Live</span>
-        </div>
-        <div className="w-px h-3 flex-shrink-0" style={{ background: 'var(--bg-border)' }} />
-
-        {/* Scrolling ticker */}
-        <div className="flex-1 overflow-hidden relative">
-          <div
-            className="flex gap-6 whitespace-nowrap"
-            style={{ animation: 'ticker 30s linear infinite' }}
-          >
-            {items.map((event, i) => {
-              const btcAmt = (Number(event.amountSats) / 1e8).toFixed(5).replace(/\.?0+$/, '');
-              return (
-                <Link
-                  key={i}
-                  href={`/launch/${event.launchAddress}`}
-                  className="inline-flex items-center gap-1.5 text-[10px] font-mono hover:opacity-70 transition-opacity flex-shrink-0"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <span style={{ color: 'var(--green-500)' }}>▲</span>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{event.tokenSymbol}</span>
-                  <span>{btcAmt} BTC</span>
-                  <span style={{ color: 'var(--text-tertiary)' }}>by {event.buyerAddress.slice(0, 6)}…</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function Header() {
   const pathname = usePathname();

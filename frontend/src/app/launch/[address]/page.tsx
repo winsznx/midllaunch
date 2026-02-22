@@ -394,50 +394,50 @@ function DetailTabs({
                     .map(row => {
                       const isSell = row.tradeType === 'SELL';
                       return (
-                      <tr
-                        key={row.id}
-                        className={row.isNew ? 'animate-slideInUp' : ''}
-                        style={{ borderBottom: '1px solid var(--bg-border)' }}
-                      >
-                        <td className="py-2.5">
-                          <span
-                            className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold"
-                            style={{
-                              background: isSell ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)',
-                              color: isSell ? 'var(--red-500)' : 'var(--green-500)',
-                            }}
-                          >
-                            {isSell ? '↓ SELL' : '↑ BUY'}
-                          </span>
-                        </td>
-                        <td className="py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
-                          {row.buyer.slice(0, 8)}…{row.buyer.slice(-4)}
-                        </td>
-                        <td className="py-2.5 text-right font-mono" style={{ color: 'var(--text-primary)' }}>
-                          {formatBTC(row.btcAmount)}
-                        </td>
-                        <td className="py-2.5 text-right font-mono" style={{ color: isSell ? 'var(--red-500)' : 'var(--green-500)' }}>
-                          {isSell ? '-' : '+'}{formatTokenAmount(row.tokenAmount)}
-                        </td>
-                        <td className="py-2.5 text-right" style={{ color: 'var(--text-tertiary)' }}>
-                          {timeSince(row.timestamp)}
-                        </td>
-                        <td className="py-2.5 text-right">
-                          {row.txHash ? (
-                            <a
-                              href={`https://mempool.staging.midl.xyz/tx/${row.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:underline"
-                              style={{ color: 'var(--orange-500)' }}
+                        <tr
+                          key={row.id}
+                          className={row.isNew ? 'animate-slideInUp' : ''}
+                          style={{ borderBottom: '1px solid var(--bg-border)' }}
+                        >
+                          <td className="py-2.5">
+                            <span
+                              className="inline-block px-1.5 py-0.5 rounded text-xs font-semibold"
+                              style={{
+                                background: isSell ? 'rgba(239,68,68,0.12)' : 'rgba(34,197,94,0.12)',
+                                color: isSell ? 'var(--red-500)' : 'var(--green-500)',
+                              }}
                             >
-                              ↗
-                            </a>
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)' }}>—</span>
-                          )}
-                        </td>
-                      </tr>
+                              {isSell ? '↓ SELL' : '↑ BUY'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
+                            {row.buyer.slice(0, 8)}…{row.buyer.slice(-4)}
+                          </td>
+                          <td className="py-2.5 text-right font-mono" style={{ color: 'var(--text-primary)' }}>
+                            {formatBTC(row.btcAmount)}
+                          </td>
+                          <td className="py-2.5 text-right font-mono" style={{ color: isSell ? 'var(--red-500)' : 'var(--green-500)' }}>
+                            {isSell ? '-' : '+'}{formatTokenAmount(row.tokenAmount)}
+                          </td>
+                          <td className="py-2.5 text-right" style={{ color: 'var(--text-tertiary)' }}>
+                            {timeSince(row.timestamp)}
+                          </td>
+                          <td className="py-2.5 text-right">
+                            {row.txHash ? (
+                              <a
+                                href={`https://mempool.staging.midl.xyz/tx/${row.txHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline"
+                                style={{ color: 'var(--orange-500)' }}
+                              >
+                                ↗
+                              </a>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)' }}>—</span>
+                            )}
+                          </td>
+                        </tr>
                       );
                     })}
                 </tbody>
@@ -1030,14 +1030,14 @@ export default function LaunchDetailPage() {
             <>
               {/* Buy / Sell tabs */}
               <div
-                className="flex gap-1 p-1 rounded-xl"
+                className="flex gap-1 p-1 rounded-xl w-full"
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
               >
-                {(['buy', 'sell'] as const).map(tab => (
+                {(['buy', 'sell'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setTradeTab(tab)}
-                    className="flex-1 py-2 rounded-lg text-sm font-semibold capitalize transition-all"
+                    className="flex-1 w-1/2 min-w-0 py-2 rounded-lg text-sm font-semibold capitalize transition-all truncate"
                     style={{
                       background: tradeTab === tab ? (tab === 'buy' ? 'var(--orange-500)' : 'var(--red-500)') : 'transparent',
                       color: tradeTab === tab ? '#fff' : 'var(--text-secondary)',
