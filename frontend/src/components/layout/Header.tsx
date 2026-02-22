@@ -26,6 +26,8 @@ const NAV_LINKS = [
   { href: '/referral', label: 'Referral' },
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/transactions', label: 'Txns' },
+  { href: '/link-x', label: 'Link X' },
+  { href: '/bot-demo', label: 'Bot' },
 ];
 
 function ActivityTicker() {
