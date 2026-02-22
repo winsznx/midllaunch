@@ -40,7 +40,7 @@ function ActivityTicker() {
   return (
     <div
       className="w-full border-b overflow-hidden"
-      style={{ borderColor: 'var(--bg-border)', background: 'var(--bg-base)', height: '28px' }}
+      style={{ borderColor: 'var(--bg-border)', background: 'transparent', height: '28px' }}
     >
       <div className="flex items-center h-full gap-2 px-3">
         <div className="flex items-center gap-1 flex-shrink-0" style={{ color: 'var(--orange-500)' }}>
@@ -147,19 +147,19 @@ export function Header() {
   const isConnecting = status === 'pending';
 
   return (
-    <header className="sticky top-0 z-50 w-full" style={{ borderBottom: '1px solid var(--bg-border)' }}>
-      {/* Activity ticker */}
-      <ActivityTicker />
-
-      {/* Main nav row */}
+    <header className="sticky top-4 z-50 w-full px-4 md:px-6 mb-8 mt-2 transition-all duration-300">
       <div
-        className="w-full border-b backdrop-blur-md"
+        className="mx-auto max-w-6xl w-full flex flex-col overflow-hidden rounded-2xl shadow-xl backdrop-blur-md"
         style={{
-          borderColor: 'var(--bg-border)',
-          background: 'rgba(13,12,11,0.92)',
+          background: 'var(--bg-glass)',
+          border: '1px solid var(--bg-border)',
         }}
       >
-        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+        {/* Activity ticker */}
+        <ActivityTicker />
+
+        {/* Main nav row */}
+        <div className="w-full flex h-14 items-center justify-between px-4 md:px-6">
           {/* Logo */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 select-none flex-shrink-0">
