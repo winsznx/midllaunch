@@ -205,3 +205,15 @@ model PendingMetadata {
   @@index([btcTxId])
 }
 
+// Side-channel for Purchase intents before they are confirmed on-chain
+model PendingPurchase {
+  id          String   @id @default(cuid())
+  btcAddress  String   // The true L1 user who bought
+  launchAddr  String   // The Token curveAddress or tokenAddress
+  btcAmount   String   // Amount in satoshis to correlate with EVM event
+  applied     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([launchAddr, btcAmount, applied])
+}
+
