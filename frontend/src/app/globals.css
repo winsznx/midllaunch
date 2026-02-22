@@ -143,6 +143,18 @@
   100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% - 60px)) scale(0.3); opacity: 0; }
 }
 
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ─── Base ──────────────────────────────────────────── */
 * {
   border-color: var(--border);
