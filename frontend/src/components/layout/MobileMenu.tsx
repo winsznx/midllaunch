@@ -13,6 +13,8 @@ const NAV_LINKS = [
   { href: '/launches', label: 'Browse' },
   { href: '/create', label: 'Launch Token' },
   { href: '/launch-nft', label: 'Launch NFT' },
+  { href: '/my-tokens', label: 'My Tokens' },
+  { href: '/referral', label: 'Referral' },
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/transactions', label: 'Txns' },
   { href: '/bot-demo', label: 'Bot' },

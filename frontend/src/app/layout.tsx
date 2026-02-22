@@ -10,6 +10,7 @@ import { WagmiMidlProvider } from "@midl/executor-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { DisclaimerModal } from "@/components/layout/DisclaimerModal";
 
 import { PageTransition } from "@/components/layout/PageTransition";
 import { useWebSocket } from "@/lib/hooks/useWebSocket";
@@ -51,6 +52,7 @@ export default function RootLayout({
             <QueryClientProvider client={queryClient}>
               <WagmiMidlProvider>
                 <WebSocketProvider>
+                  <DisclaimerModal />
                   <a href="#main-content" className="skip-link">Skip to content</a>
                   <Header />
                   <main id="main-content" className="min-h-screen pb-16 md:pb-0">
