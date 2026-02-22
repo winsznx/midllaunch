@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { href: '/transactions', label: 'Txns' },
   { href: '/bot-demo', label: 'Bot' },
   { href: '/link-x', label: 'Link to X' },
+  { href: 'https://faucet.midl.xyz', label: 'Faucet ↗' },
 ];
 
 export function MobileMenu() {

@@ -22,11 +22,6 @@ const NAV_LINKS = [
   { href: '/launches', label: 'Browse' },
   { href: '/create', label: 'Launch Token' },
   { href: '/launch-nft', label: 'Launch NFT' },
-  { href: '/my-tokens', label: 'My Tokens' },
-  { href: '/referral', label: 'Referral' },
-  { href: '/portfolio', label: 'Portfolio' },
-  { href: '/transactions', label: 'Txns' },
-  { href: '/link-x', label: 'Link X' },
   { href: '/bot-demo', label: 'Bot' },
 ];
 
@@ -353,31 +348,66 @@ export function Header() {
                         toast.success('Address copied');
                         setShowWalletMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
-                      style={{ color: 'var(--text-primary)' }}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2 border-b"
+                      style={{ color: 'var(--text-primary)', borderColor: 'var(--bg-border)' }}
                     >
-                      Copy Payment Address
+                      Copy Address
                     </button>
-                    <Link
-                      href="/my-tokens"
-                      onClick={() => setShowWalletMenu(false)}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      My Tokens
-                    </Link>
-                    <Link
-                      href="/link-x"
-                      onClick={() => setShowWalletMenu(false)}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
-                      style={{ color: 'var(--text-primary)' }}
-                    >
-                      Link to X
-                    </Link>
+                    <div className="py-1">
+                      <Link
+                        href="/portfolio"
+                        onClick={() => setShowWalletMenu(false)}
+                        className="w-full text-left px-4 py-2 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        Portfolio
+                      </Link>
+                      <Link
+                        href="/my-tokens"
+                        onClick={() => setShowWalletMenu(false)}
+                        className="w-full text-left px-4 py-2 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        My Tokens
+                      </Link>
+                      <Link
+                        href="/transactions"
+                        onClick={() => setShowWalletMenu(false)}
+                        className="w-full text-left px-4 py-2 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        Transactions
+                      </Link>
+                      <Link
+                        href="/referral"
+                        onClick={() => setShowWalletMenu(false)}
+                        className="w-full text-left px-4 py-2 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        Referrals
+                      </Link>
+                      <Link
+                        href="/link-x"
+                        onClick={() => setShowWalletMenu(false)}
+                        className="w-full text-left px-4 py-2 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        Link to X
+                      </Link>
+                      <a
+                        href="https://faucet.midl.xyz"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full text-left px-4 py-2 text-sm font-medium transition-colors hover:bg-white/5 flex items-center gap-2"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        Faucet ↗
+                      </a>
+                    </div>
                     <button
                       onClick={() => { setShowWalletMenu(false); handleDisconnect(); }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5"
-                      style={{ color: 'var(--text-secondary)' }}
+                      className="w-full text-left px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 border-t"
+                      style={{ color: 'var(--red-500)', borderColor: 'var(--bg-border)' }}
                     >
                       Disconnect
                     </button>
