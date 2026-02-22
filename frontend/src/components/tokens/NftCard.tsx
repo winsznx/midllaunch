@@ -39,13 +39,21 @@ function addressGradient(addr: string): string {
   return `radial-gradient(ellipse, hsl(${h % 360},60%,35%), hsl(${h2},50%,15%))`;
 }
 
+import { useState } from 'react';
+
 export function NftCard({ launch }: { launch: NftLaunch }) {
+  const [imgError, setImgError] = useState(false);
+
   const mintedPct = launch.totalSupply > 0
     ? Math.min(100, (launch.totalMinted / launch.totalSupply) * 100)
     : 0;
   const isSoldOut = launch.isFinalized || launch.totalMinted >= launch.totalSupply;
 
   const marketCapSats = Number(launch.mintPrice.toString()) * launch.totalMinted;
+
+  const finalImageUrl = !imgError && launch.imageUrl
+    ? (launch.imageUrl.startsWith('http') ? launch.imageUrl : ipfsUriToHttp(launch.imageUrl))
+    : null;
 
   return (
     <Link
@@ -58,16 +66,17 @@ export function NftCard({ launch }: { launch: NftLaunch }) {
         className="relative overflow-hidden"
         style={{
           height: 160,
-          background: launch.imageUrl ? 'transparent' : addressGradient(launch.contractAddress),
+          background: finalImageUrl ? 'transparent' : addressGradient(launch.contractAddress),
         }}
       >
-        {launch.imageUrl && (
+        {finalImageUrl && (
           <Image
-            src={launch.imageUrl.startsWith('http') ? launch.imageUrl : ipfsUriToHttp(launch.imageUrl)}
+            src={finalImageUrl}
             alt={launch.name}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover"
+            onError={() => setImgError(true)}
           />
         )}
         {/* Type badge */}
