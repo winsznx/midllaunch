@@ -4,7 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useAccounts, useConnect } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
-import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
+import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
+import { usePublicClient } from 'wagmi';
 import { encodeFunctionData } from 'viem';
 import { BONDING_CURVE_ABI, LAUNCH_FACTORY_ABI, LAUNCH_FACTORY_ADDRESS, btcToWei } from '@/lib/contracts/config';
 import { TxProgress, TxStep } from '@/components/ui/TxProgress';
@@ -109,10 +110,10 @@ function BotSignPageInner() {
   const { connectors, connect } = useConnect({ purposes: [AddressPurpose.Payment] });
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
 
-  const { addTxIntentionAsync } = useAddTxIntention();
+  const publicClient = usePublicClient();
+  const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
-  const { sendBTCTransactionsAsync } = useSendBTCTransactions();
 
   const [job, setJob] = useState<BotJob | null>(null);
   const [launch, setLaunch] = useState<LaunchData | null>(null);
@@ -316,11 +317,11 @@ function BotSignPageInner() {
       setBtcTxId(fbtResult.tx.id);
       setActiveStep(2);
 
-      const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
+      await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setActiveStep(3);
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signedIntention],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
 

@@ -3,7 +3,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
-import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
+import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
+import { usePublicClient } from 'wagmi';
 import { encodeFunctionData } from 'viem';
 import { LAUNCH_FACTORY_ADDRESS, LAUNCH_FACTORY_ABI, ExecutionMode, btcToSatoshis, percentageToBasisPoints } from '@/lib/contracts/config';
 import { uploadImageToIPFS, uploadMetadataToIPFS } from '@/lib/ipfs/upload';
@@ -70,11 +71,12 @@ export default function CreateLaunchPage() {
   const [txError, setTxError] = useState<string | null>(null);
   const [btcTxId, setBtcTxId] = useState<string | undefined>();
   const [redirectAfterClose, setRedirectAfterClose] = useState<string | null>(null);
+  const [launchSuccessSummary, setLaunchSuccessSummary] = useState<string | undefined>();
 
-  const { addTxIntentionAsync } = useAddTxIntention();
+  const publicClient = usePublicClient();
+  const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
-  const { sendBTCTransactionsAsync } = useSendBTCTransactions();
   const { waitForTransactionAsync } = useWaitForTransaction();
 
   const handleFile = useCallback((file: File) => {
@@ -183,7 +185,7 @@ export default function CreateLaunchPage() {
       setBtcTxId(fbtResult.tx.id);
       setTxActiveStep(4);
 
-      const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
+      await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setTxActiveStep(5);
 
       // Store metadata CID on backend if we uploaded
@@ -209,13 +211,16 @@ export default function CreateLaunchPage() {
         }
       }
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signedIntention],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setTxActiveStep(6);
 
       await waitForTransactionAsync({ txId: fbtResult.tx.id });
+      setTxActiveStep(7);
+      setLaunchSuccessSummary(`Launched ${formData.name} ($${formData.symbol})`);
+      window.dispatchEvent(new Event('midl:tx-success'));
 
       if (devBuyEnabled && parseFloat(devBuyAmount) > 0) {
         sessionStorage.setItem('pendingDevBuy', JSON.stringify({
@@ -242,13 +247,18 @@ export default function CreateLaunchPage() {
   const estimatedMaxPrice =
     estimatedInitialPrice + (parseFloat(formData.priceIncrement) || 0) * (parseInt(formData.supplyCap) || 0);
 
-  const launchStepDefs = [
-    { label: 'Upload image to IPFS', skip: !imageFile },
-    { label: 'Pin metadata to IPFS', skip: !imageFile },
-    { label: 'Queue deploy intent' },
-    { label: 'Build BTC transaction', detail: btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined },
-    { label: 'Sign with wallet (BIP-322)' },
-    { label: 'Broadcast to Midl Staging' },
+  const launchStepDefs: { label: string; activeDetail?: string; doneDetail?: string; skip?: boolean }[] = [
+    { label: 'Upload image to IPFS', activeDetail: 'Pinning image to IPFS network', skip: !imageFile },
+    { label: 'Pin metadata to IPFS', activeDetail: 'Pinning token metadata to IPFS', skip: !imageFile },
+    { label: 'Queue deploy intent', activeDetail: 'Encoding createLaunch calldata' },
+    {
+      label: 'Build BTC transaction',
+      activeDetail: 'Wallet opening · Signing your UTXOs',
+      doneDetail: btcTxId ? `${btcTxId.slice(0, 20)}…` : undefined,
+    },
+    { label: 'Sign with wallet (BIP-322)', activeDetail: 'Linking EVM deploy intent to BTC tx' },
+    { label: 'Broadcast to Bitcoin + Midl', activeDetail: 'Submitting both transactions to network' },
+    { label: 'Awaiting settlement', activeDetail: 'BTC confirmation → contract deployment on Midl' },
   ].filter(s => !s.skip);
 
   const launchSteps: TxStep[] = launchStepDefs.map((s, i) => {
@@ -256,7 +266,8 @@ export default function CreateLaunchPage() {
     if (i < txActiveStep) status = 'done';
     else if (i === txActiveStep) status = 'active';
     if (txError && i === txActiveStep) status = 'error';
-    return { label: s.label, detail: s.detail, status };
+    const detail = i < txActiveStep ? s.doneDetail : i === txActiveStep ? s.activeDetail : undefined;
+    return { label: s.label, detail, status };
   });
 
   if (!paymentAccount) {
@@ -291,16 +302,14 @@ export default function CreateLaunchPage() {
         subtitle={`$${formData.symbol || 'TOKEN'} · Midl Staging Network`}
         steps={launchSteps}
         error={txError}
+        btcTxId={btcTxId}
+        successSummary={launchSuccessSummary}
         onClose={() => {
           setShowProgress(false);
           setTxError(null);
           setStep('form');
           if (redirectAfterClose) router.push(redirectAfterClose);
         }}
-        successAction={btcTxId ? {
-          label: 'View Transaction ↗',
-          href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
-        } : undefined}
       />
       <div className="container mx-auto px-4 py-10">
         <div className="mb-8">
@@ -374,7 +383,7 @@ export default function CreateLaunchPage() {
                     <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                      <span className="text-2xl">🖼</span>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-tertiary)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                       <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                         Click or drag to upload · PNG, JPG, GIF · Max 10 MB
                       </span>
@@ -388,7 +397,7 @@ export default function CreateLaunchPage() {
                       className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs"
                       style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
                     >
-                      ✕
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                     </button>
                   )}
                 </div>

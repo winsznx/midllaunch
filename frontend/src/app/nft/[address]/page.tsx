@@ -6,7 +6,6 @@ import {
   useAddTxIntention,
   useSignIntention,
   useFinalizeBTCTransaction,
-  useSendBTCTransactions,
 } from '@midl/executor-react';
 import { useReadContract, usePublicClient } from 'wagmi';
 import { encodeFunctionData } from 'viem';
@@ -81,10 +80,9 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
   const paymentAccount = accounts?.find(a => a.purpose === AddressPurpose.Payment);
   const publicClient = usePublicClient();
 
-  const { addTxIntentionAsync } = useAddTxIntention();
+  const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
-  const { sendBTCTransactionsAsync } = useSendBTCTransactions();
 
   const [priceSats, setPriceSats] = useState('');
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
@@ -137,11 +135,11 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
     setBtcTxId(fbt.tx.id);
     setActiveStep(2);
 
-    const signed = await signIntentionAsync({ txId: fbt.tx.id, intention });
+    await signIntentionAsync({ txId: fbt.tx.id, intention });
     setActiveStep(3);
 
-    await sendBTCTransactionsAsync({
-      serializedTransactions: [signed],
+    await publicClient?.sendBTCTransactions({
+      serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
       btcTransaction: fbt.tx.hex,
     });
     setActiveStep(4);
@@ -214,7 +212,9 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
             <h3 className="font-display font-bold text-base" style={{ color: 'var(--text-primary)' }}>
               List NFT #{tokenId}
             </h3>
-            <button onClick={onClose} style={{ color: 'var(--text-tertiary)' }}>✕</button>
+            <button onClick={onClose} style={{ color: 'var(--text-tertiary)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
           </div>
 
           {isApproved === null && (
@@ -291,10 +291,9 @@ export default function NftCollectionPage({
   const paymentAccount = accounts?.find(a => a.purpose === AddressPurpose.Payment);
   const publicClient = usePublicClient();
 
-  const { addTxIntentionAsync } = useAddTxIntention();
+  const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
-  const { sendBTCTransactionsAsync } = useSendBTCTransactions();
   const { waitForTransactionAsync } = useWaitForTransaction();
 
   // ── API data ──
@@ -427,6 +426,7 @@ export default function NftCollectionPage({
   const [mintStep, setMintStep] = useState(0);
   const [mintBtcTxId, setMintBtcTxId] = useState<string | undefined>();
   const [showMintProgress, setShowMintProgress] = useState(false);
+  const [mintSuccessSummary, setMintSuccessSummary] = useState<string | undefined>();
 
   const handleMint = async () => {
     if (!paymentAccount) { setMintError('Connect your wallet first'); return; }
@@ -435,6 +435,7 @@ export default function NftCollectionPage({
     setMintError(null);
     setMintStep(0);
     setMintBtcTxId(undefined);
+    setMintSuccessSummary(undefined);
     setShowMintProgress(true);
 
     try {
@@ -467,16 +468,18 @@ export default function NftCollectionPage({
       setMintBtcTxId(fbt.tx.id);
       setMintStep(2);
 
-      const signed = await signIntentionAsync({ txId: fbt.tx.id, intention });
+      await signIntentionAsync({ txId: fbt.tx.id, intention });
       setMintStep(3);
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signed],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
       });
       setMintStep(4);
 
       await waitForTransactionAsync({ txId: fbt.tx.id });
+      setMintSuccessSummary(`Minted ${quantity} ${name} NFT${quantity > 1 ? 's' : ''}`);
+      window.dispatchEvent(new Event('midl:tx-success'));
       refetchBalance();
     } catch (err) {
       setMintError(err instanceof Error ? err.message : 'Mint failed');
@@ -491,6 +494,7 @@ export default function NftCollectionPage({
   const [buyBtcTxId, setBuyBtcTxId] = useState<string | undefined>();
   const [showBuyProgress, setShowBuyProgress] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
+  const [buySuccessSummary, setBuySuccessSummary] = useState<string | undefined>();
 
   const handleBuySecondary = async (listing: SecondaryListing) => {
     if (!paymentAccount) return;
@@ -498,6 +502,7 @@ export default function NftCollectionPage({
     setBuyStep(0);
     setBuyBtcTxId(undefined);
     setBuyError(null);
+    setBuySuccessSummary(undefined);
     setShowBuyProgress(true);
 
     try {
@@ -528,16 +533,18 @@ export default function NftCollectionPage({
       setBuyBtcTxId(fbt.tx.id);
       setBuyStep(2);
 
-      const signed = await signIntentionAsync({ txId: fbt.tx.id, intention });
+      await signIntentionAsync({ txId: fbt.tx.id, intention });
       setBuyStep(3);
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signed],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
       });
       setBuyStep(4);
 
       await waitForTransactionAsync({ txId: fbt.tx.id });
+      setBuySuccessSummary(`Bought ${name} #${listing.tokenId}`);
+      window.dispatchEvent(new Event('midl:tx-success'));
       refetchBalance();
     } catch (err) {
       setBuyError(err instanceof Error ? err.message : 'Purchase failed');
@@ -552,6 +559,7 @@ export default function NftCollectionPage({
   const [delistBtcTxId, setDelistBtcTxId] = useState<string | undefined>();
   const [showDelistProgress, setShowDelistProgress] = useState(false);
   const [delistError, setDelistError] = useState<string | null>(null);
+  const [delistSuccessSummary, setDelistSuccessSummary] = useState<string | undefined>();
 
   const handleDelist = async (tokenId: number) => {
     if (!paymentAccount) return;
@@ -559,6 +567,7 @@ export default function NftCollectionPage({
     setDelistStep(0);
     setDelistBtcTxId(undefined);
     setDelistError(null);
+    setDelistSuccessSummary(undefined);
     setShowDelistProgress(true);
 
     try {
@@ -585,16 +594,17 @@ export default function NftCollectionPage({
       setDelistBtcTxId(fbt.tx.id);
       setDelistStep(2);
 
-      const signed = await signIntentionAsync({ txId: fbt.tx.id, intention });
+      await signIntentionAsync({ txId: fbt.tx.id, intention });
       setDelistStep(3);
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signed],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
       });
       setDelistStep(4);
 
       await waitForTransactionAsync({ txId: fbt.tx.id });
+      setDelistSuccessSummary(`Delisted ${name} #${tokenId}`);
     } catch (err) {
       setDelistError(err instanceof Error ? err.message : 'Delist failed');
     } finally {
@@ -634,6 +644,7 @@ export default function NftCollectionPage({
         subtitle={`${symbol ? `$${symbol}` : ''} · Bitcoin-secured`}
         steps={makeMintSteps(mintStep, mintBtcTxId)}
         error={mintError ?? undefined}
+        successSummary={mintSuccessSummary}
         onClose={() => { setShowMintProgress(false); setMintError(null); }}
         successAction={mintBtcTxId ? {
           label: 'View BTC Transaction ↗',
@@ -648,6 +659,7 @@ export default function NftCollectionPage({
         subtitle="Secondary market · Bitcoin-secured"
         steps={makeSecondarySteps(buyStep, 'Queue purchase intent', buyBtcTxId)}
         error={buyError ?? undefined}
+        successSummary={buySuccessSummary}
         onClose={() => { setShowBuyProgress(false); setBuyError(null); setBuyingTokenId(null); }}
         successAction={buyBtcTxId ? {
           label: 'View BTC Transaction ↗',
@@ -662,6 +674,7 @@ export default function NftCollectionPage({
         subtitle="Cancel secondary listing"
         steps={makeSecondarySteps(delistStep, 'Queue delist intent', delistBtcTxId)}
         error={delistError ?? undefined}
+        successSummary={delistSuccessSummary}
         onClose={() => { setShowDelistProgress(false); setDelistError(null); setDelistingTokenId(null); }}
         successAction={delistBtcTxId ? {
           label: 'View BTC Transaction ↗',

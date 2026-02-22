@@ -2,7 +2,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
-import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction, useSendBTCTransactions } from '@midl/executor-react';
+import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
+import { usePublicClient } from 'wagmi';
 import { encodeFunctionData } from 'viem';
 import { NFT_FACTORY_ABI, NFT_FACTORY_ADDRESS, btcToWei } from '@/lib/contracts/config';
 import { uploadImageToIPFS, uploadMetadataToIPFS } from '@/lib/ipfs/upload';
@@ -34,15 +35,15 @@ const STEPS: { key: Step; label: string }[] = [
   { key: 'review', label: 'Deploy' },
 ];
 
-const DEPLOY_STAGES = [
-  'Uploading image to IPFS',
-  'Uploading metadata to IPFS',
-  'Preparing transaction',
-  'Awaiting wallet signature',
-  'BTC Transaction broadcast',
-  'Midl Execution',
-  'Finalized',
-] as const;
+const DEPLOY_STAGES: { label: string; activeDetail?: string }[] = [
+  { label: 'Upload image to IPFS', activeDetail: 'Pinning image to IPFS network' },
+  { label: 'Pin metadata to IPFS', activeDetail: 'Pinning collection metadata to IPFS' },
+  { label: 'Queue deploy intent', activeDetail: 'Encoding createCollection calldata' },
+  { label: 'Build BTC transaction', activeDetail: 'Wallet opening · Signing your UTXOs' },
+  { label: 'Sign with wallet (BIP-322)', activeDetail: 'Linking EVM deploy intent to BTC tx' },
+  { label: 'Broadcast to Bitcoin + Midl', activeDetail: 'Submitting both transactions to network' },
+  { label: 'Awaiting settlement', activeDetail: 'BTC confirmation → contract deployment on Midl' },
+];
 
 function collectionGradient(name: string): string {
   let hash = 0;
@@ -60,10 +61,10 @@ export default function LaunchNftPage() {
   const { accounts } = useAccounts();
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
 
-  const { addTxIntentionAsync } = useAddTxIntention();
+  const publicClient = usePublicClient();
+  const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
-  const { sendBTCTransactionsAsync } = useSendBTCTransactions();
   const { waitForTransactionAsync } = useWaitForTransaction();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,6 +91,7 @@ export default function LaunchNftPage() {
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState(false);
   const [btcTxId, setBtcTxId] = useState<string | undefined>();
+  const [deploySuccessSummary, setDeploySuccessSummary] = useState<string | undefined>();
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm(prev => ({ ...prev, [key]: value }));
@@ -183,16 +185,19 @@ export default function LaunchNftPage() {
       setBtcTxId(fbtResult.tx.id);
       setDeployStage(4);
 
-      const signedIntention = await signIntentionAsync({ txId: fbtResult.tx.id, intention });
+      await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setDeployStage(5);
 
-      await sendBTCTransactionsAsync({
-        serializedTransactions: [signedIntention],
+      await publicClient?.sendBTCTransactions({
+        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbtResult.tx.hex,
       });
       setDeployStage(6);
 
       await waitForTransactionAsync({ txId: fbtResult.tx.id });
+      setDeployStage(7);
+      setDeploySuccessSummary(`Deployed ${form.name} ($${form.symbol}) Collection`);
+      window.dispatchEvent(new Event('midl:tx-success'));
       toast.success('NFT Collection deployed!');
 
       if (metadataCID) {
@@ -222,17 +227,16 @@ export default function LaunchNftPage() {
 
   const stepIndex = STEPS.findIndex(s => s.key === step);
 
-  const nftTxSteps: TxStep[] = DEPLOY_STAGES.slice(0, -1).map((label, i) => ({
-    label,
-    detail: i === 3 && btcTxId ? `${btcTxId.slice(0, 16)}…` : undefined,
-    status: deployStage === 6
-      ? 'done'
-      : i < deployStage
-      ? 'done'
-      : i === deployStage
-      ? (deployError ? 'error' : 'active')
-      : 'pending',
-  }));
+  const nftTxSteps: TxStep[] = DEPLOY_STAGES.map((s, i) => {
+    const isDone = deployStage > i;
+    const isActive = deployStage === i;
+    const doneDetail = i === 3 && btcTxId ? `${btcTxId.slice(0, 20)}…` : undefined;
+    return {
+      label: s.label,
+      detail: isDone ? doneDetail : isActive ? s.activeDetail : undefined,
+      status: isDone ? 'done' : isActive ? (deployError ? 'error' : 'active') : 'pending',
+    };
+  });
 
   if (!paymentAccount) {
     return (
@@ -264,15 +268,13 @@ export default function LaunchNftPage() {
       subtitle={`${form.symbol ? `$${form.symbol}` : ''} · Midl Staging Network`}
       steps={nftTxSteps}
       error={deployError}
+      btcTxId={btcTxId}
+      successSummary={deploySuccessSummary}
       onClose={() => {
         setShowProgress(false);
         setDeployError(null);
-        if (deployStage === 6) router.push('/launches');
+        if (deployStage >= 7) router.push('/launches');
       }}
-      successAction={btcTxId ? {
-        label: 'View Transaction ↗',
-        href: `https://mempool.staging.midl.xyz/tx/${btcTxId}`,
-      } : undefined}
     />
     <div className="container mx-auto px-4 py-10">
       {/* Header */}
@@ -359,7 +361,7 @@ export default function LaunchNftPage() {
                       <img src={form.imagePreview} alt="preview" className="w-full h-full object-cover" />
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                        <span className="text-2xl">🖼</span>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-tertiary)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                         <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                           Click or drag to upload · PNG, JPG, GIF · Max 10 MB
                         </span>
@@ -373,7 +375,7 @@ export default function LaunchNftPage() {
                         className="absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs"
                         style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}
                       >
-                        ✕
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                       </button>
                     )}
                   </div>
@@ -620,12 +622,12 @@ export default function LaunchNftPage() {
                 {deployStage >= 0 && (
                   <div className="space-y-2 mb-5">
                     {DEPLOY_STAGES.map((stage, i) => (
-                      <div key={stage} className="flex items-center gap-2 text-xs">
+                      <div key={stage.label} className="flex items-center gap-2 text-xs">
                         <span style={{ color: i < deployStage ? 'var(--green-500)' : i === deployStage ? 'var(--orange-500)' : 'var(--text-tertiary)' }}>
                           {i < deployStage ? '✓' : i === deployStage && isDeploying ? '›' : '○'}
                         </span>
                         <span style={{ color: i <= deployStage ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-                          {stage}
+                          {stage.label}
                         </span>
                         {i === deployStage && isDeploying && <Spinner size={12} />}
                       </div>

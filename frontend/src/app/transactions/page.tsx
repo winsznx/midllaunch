@@ -2,6 +2,7 @@
 
 import { useAccounts } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
+import { useAccount } from 'wagmi';
 import { useUserActivity } from '@/lib/hooks/useLaunches';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import Link from 'next/link';
@@ -47,9 +48,9 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
 export default function TransactionsPage() {
   const { accounts } = useAccounts();
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
-  const address = paymentAccount?.address;
+  const { address: evmAddress } = useAccount();
 
-  const { data: activity, isLoading } = useUserActivity(address);
+  const { data: activity, isLoading } = useUserActivity(evmAddress);
   const purchases = activity?.purchases ?? [];
   const launchesCreated = activity?.launches ?? [];
   const nftLaunches = activity?.nftLaunches ?? [];

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAccounts } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
+import { useAccount } from 'wagmi';
 import { useUserHoldings, useUserActivity } from '@/lib/hooks/useLaunches';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import Link from 'next/link';
@@ -45,11 +46,11 @@ function PnlBadge({ sats, pct }: { sats: number; pct: number }) {
 export default function PortfolioPage() {
   const { accounts } = useAccounts();
   const paymentAccount = accounts?.find(acc => acc.purpose === AddressPurpose.Payment);
-  const address = paymentAccount?.address;
+  const { address: evmAddress } = useAccount();
   const [activeTab, setActiveTab] = useState<'holdings' | 'activity'>('holdings');
 
-  const { data: holdings, isLoading: holdingsLoading } = useUserHoldings(address);
-  const { data: activity, isLoading: activityLoading } = useUserActivity(address);
+  const { data: holdings, isLoading: holdingsLoading } = useUserHoldings(evmAddress);
+  const { data: activity, isLoading: activityLoading } = useUserActivity(evmAddress);
 
   if (!paymentAccount) {
     return (
@@ -93,18 +94,18 @@ export default function PortfolioPage() {
           </h1>
           <div className="flex items-center gap-2">
             <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
-              {address}
+              {paymentAccount?.address}
             </p>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(address ?? '');
+                navigator.clipboard.writeText(paymentAccount?.address ?? '');
                 toast.success('Address copied');
               }}
               className="text-xs transition-colors hover:opacity-70"
               style={{ color: 'var(--text-tertiary)' }}
               title="Copy address"
             >
-              📋
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             </button>
           </div>
         </div>
@@ -169,7 +170,7 @@ export default function PortfolioPage() {
               color: activeTab === tab ? '#fff' : 'var(--text-secondary)',
             }}
           >
-            {tab === 'holdings' ? '💼 Holdings' : '📋 My Activity'}
+            {tab === 'holdings' ? 'Holdings' : 'My Activity'}
           </button>
         ))}
       </div>
@@ -268,7 +269,7 @@ export default function PortfolioPage() {
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `midllaunch-activity-${address?.slice(0, 8)}.csv`;
+                  a.download = `midllaunch-activity-${paymentAccount?.address?.slice(0, 8)}.csv`;
                   a.click();
                   URL.revokeObjectURL(url);
                 }}

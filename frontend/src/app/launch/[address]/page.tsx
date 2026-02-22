@@ -639,10 +639,11 @@ export default function LaunchDetailPage() {
       if (Date.now() < end) requestAnimationFrame(frame);
     };
     frame();
-  }, [launch?.status]);
+  }, [launch]);
 
   const [tradeTab, setTradeTab] = useState<'buy' | 'sell'>('buy');
   const [defaultBtcAmount, setDefaultBtcAmount] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const milestoneFiredRef = useRef<Set<number>>(new Set());
 
   // Milestone toasts at 25 / 50 / 75 %
@@ -655,7 +656,7 @@ export default function LaunchDetailPage() {
     for (const m of MILESTONES) {
       if (pct >= m && !milestoneFiredRef.current.has(m)) {
         milestoneFiredRef.current.add(m);
-        toast(`${launch.symbol} is ${m}% sold! 🔥`, { icon: '📊' });
+        toast(`${launch.symbol} is ${m}% sold!`);
       }
     }
   }, [launch]);
@@ -730,10 +731,32 @@ export default function LaunchDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 lg:py-10">
-      <Link href="/launches" className="text-xs font-medium hover:underline inline-block mb-5"
-        style={{ color: 'var(--orange-500)' }}>
-        ← All Launches
-      </Link>
+      <div className="flex items-center justify-between mb-5">
+        <Link href="/launches" className="text-xs font-medium hover:underline"
+          style={{ color: 'var(--orange-500)' }}>
+          ← All Launches
+        </Link>
+        <button
+          onClick={async () => {
+            setIsRefreshing(true);
+            await Promise.all([refetch(), refetchPurchases()]);
+            setIsRefreshing(false);
+          }}
+          disabled={isRefreshing}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:opacity-80 disabled:opacity-50"
+          style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--bg-border)' }}
+        >
+          <svg
+            width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            className={isRefreshing ? 'animate-spin' : ''}
+          >
+            <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          Refresh
+        </button>
+      </div>
 
       {/* Header */}
       <div className="flex items-start gap-4 mb-6 lg:mb-8">
