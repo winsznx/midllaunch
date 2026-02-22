@@ -16,6 +16,7 @@ const PROTOCOL_LINKS = [
   { label: 'Architecture Overview', href: '/how-it-works' },
   { label: 'Settlement Model', href: '/how-it-works#settlement' },
   { label: 'Bonding Curve Model', href: '/how-it-works#bonding-curve' },
+  { label: 'Vision & Roadmap', href: 'https://github.com/winsznx/midllaunch/blob/main/ROADMAP.md', external: true },
 ];
 
 const STATUS_ITEMS = [
@@ -131,15 +132,28 @@ export function Footer() {
               Protocol
             </div>
             <div className="space-y-2">
-              {PROTOCOL_LINKS.map(({ label, href }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="block text-xs transition-colors hover:underline"
-                  style={{ color: 'var(--text-tertiary)' }}
-                >
-                  {label}
-                </Link>
+              {PROTOCOL_LINKS.map(({ label, href, external }) => (
+                external ? (
+                  <a
+                    key={href}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-xs transition-colors hover:underline"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
+                    {label}
+                  </a>
+                ) : (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="block text-xs transition-colors hover:underline"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
+                    {label}
+                  </Link>
+                )
               ))}
               <Link
                 href="/api-reference"
