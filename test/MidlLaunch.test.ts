@@ -14,6 +14,7 @@ describe("MidlLaunch Protocol", function () {
 
   // Constants from PRD Section 8
   const TOKEN_UNIT = parseUnits("1", 18); // 1 whole token
+  const WEI_PER_SAT = 10n ** 10n; // 1 sat = 1e10 wei on Midl EVM
   const MIN_SUPPLY_CAP = parseUnits("1000000", 18); // 1M tokens
   const MAX_SUPPLY_CAP = parseUnits("21000000", 18); // 21M tokens
   const MIN_BASE_PRICE = 1_000n; // sats
@@ -196,11 +197,10 @@ describe("MidlLaunch Protocol", function () {
     it("Should enforce supply cap invariant", async function () {
       const supplyCap = await token.supplyCap();
 
-      // Try to mint exceeding supply cap should revert
-      // First, buy up to near cap
-      const priceForOneMillion = 50_000n * 1_000_000n; // Approximate
+      // Buy a moderate amount of tokens first
+      const buyAmountSats = 100_000_000n; // 100M sats = 1 BTC
       await curve.connect(buyer1).buy(ethers.ZeroHash, 0, {
-        value: priceForOneMillion,
+        value: buyAmountSats * WEI_PER_SAT,
       });
 
       const currentSupply = await token.totalSupply();
@@ -210,10 +210,10 @@ describe("MidlLaunch Protocol", function () {
       const remainingSupply = supplyCap - currentSupply;
       const overflowAmount = remainingSupply + TOKEN_UNIT;
 
-      // Attempting to buy more than remaining should revert
+      // Attempting to buy with minTokensOut higher than remaining should revert
       await expect(
         curve.connect(buyer1).buy(ethers.ZeroHash, overflowAmount, {
-          value: parseUnits("1000000000", "gwei"),
+          value: buyAmountSats * WEI_PER_SAT,
         })
       ).to.be.reverted;
     });
@@ -276,7 +276,7 @@ describe("MidlLaunch Protocol", function () {
       // Buy some tokens
       const intentId = keccak256(toUtf8Bytes("buy-1"));
       await curve.connect(buyer1).buy(intentId, 0, {
-        value: 1_000_000n,
+        value: 1_000_000n * WEI_PER_SAT,
       });
 
       const price2 = await curve.getCurrentPrice();
@@ -287,7 +287,7 @@ describe("MidlLaunch Protocol", function () {
       // Buy more tokens
       const intentId2 = keccak256(toUtf8Bytes("buy-2"));
       await curve.connect(buyer1).buy(intentId2, 0, {
-        value: 1_000_000n,
+        value: 1_000_000n * WEI_PER_SAT,
       });
 
       const price3 = await curve.getCurrentPrice();
@@ -302,18 +302,16 @@ describe("MidlLaunch Protocol", function () {
 
       const expectedTokens = await curve.calculatePurchaseReturn(btcAmount, currentSupply);
 
-      // Set minTokensOut higher than expected should revert
       const intentId = keccak256(toUtf8Bytes("slippage-test"));
       await expect(
         curve.connect(buyer1).buy(intentId, expectedTokens + TOKEN_UNIT, {
-          value: btcAmount,
+          value: btcAmount * WEI_PER_SAT,
         })
       ).to.be.revertedWith("BondingCurve: slippage exceeded");
 
-      // Set minTokensOut at expected should succeed
       await expect(
         curve.connect(buyer1).buy(intentId, expectedTokens, {
-          value: btcAmount,
+          value: btcAmount * WEI_PER_SAT,
         })
       ).to.not.be.reverted;
     });
@@ -323,7 +321,7 @@ describe("MidlLaunch Protocol", function () {
       const btcAmount = 1_000_000n;
 
       const tx = await curve.connect(buyer1).buy(intentId, 0, {
-        value: btcAmount,
+        value: btcAmount * WEI_PER_SAT,
       });
 
       await expect(tx)
@@ -344,14 +342,14 @@ describe("MidlLaunch Protocol", function () {
 
       const btcAmount1 = 1_000_000n;
       await curve.connect(buyer1).buy(ethers.ZeroHash, 0, {
-        value: btcAmount1,
+        value: btcAmount1 * WEI_PER_SAT,
       });
 
       expect(await curve.totalBTCDepositedSats()).to.equal(btcAmount1);
 
       const btcAmount2 = 2_000_000n;
       await curve.connect(buyer2).buy(ethers.ZeroHash, 0, {
-        value: btcAmount2,
+        value: btcAmount2 * WEI_PER_SAT,
       });
 
       expect(await curve.totalBTCDepositedSats()).to.equal(btcAmount1 + btcAmount2);
@@ -390,14 +388,13 @@ describe("MidlLaunch Protocol", function () {
 
       // First buy
       const tx1 = await curve.connect(buyer1).buy(ethers.ZeroHash, 0, {
-        value: 1_000_000n,
+        value: 1_000_000n * WEI_PER_SAT,
       });
       const receipt1 = await tx1.wait();
       const gas1 = receipt1?.gasUsed;
 
-      // Second buy (should have similar gas cost, not scale with supply)
       const tx2 = await curve.connect(buyer1).buy(ethers.ZeroHash, 0, {
-        value: 1_000_000n,
+        value: 1_000_000n * WEI_PER_SAT,
       });
       const receipt2 = await tx2.wait();
       const gas2 = receipt2?.gasUsed;
