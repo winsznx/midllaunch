@@ -322,11 +322,19 @@ class MidlLaunchIndexer {
       const supplyAfter = BigInt(newTotalSupply.toString());
       const supplyBefore = supplyAfter - tokenAmount;
 
+      // Check for pending purchase to map EVM Relayer proxy buyer back to L1 BTC user
+      const pendingPurchase = await prisma.pendingPurchase.findFirst({
+        where: { launchAddr: curveAddress.toLowerCase(), applied: false },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const actualBuyer = pendingPurchase ? pendingPurchase.btcAddress : buyer.toLowerCase();
+
       // Store purchase
       await prisma.purchase.create({
         data: {
           launchId: launch.id,
-          buyer: buyer.toLowerCase(),
+          buyer: actualBuyer,
           intentId,
           btcAmount: btcAmount.toString(),
           tokenAmount: tokenAmount.toString(),
@@ -341,6 +349,13 @@ class MidlLaunchIndexer {
       });
 
       console.log(`[DB] Stored purchase for launch: ${launch.name}`);
+
+      if (pendingPurchase) {
+        await prisma.pendingPurchase.update({
+          where: { id: pendingPurchase.id },
+          data: { applied: true },
+        });
+      }
 
       // Graduation check: finalize if supply cap reached
       if (BigInt(newTotalSupply.toString()) >= BigInt(launch.supplyCap)) {
@@ -408,11 +423,19 @@ class MidlLaunchIndexer {
       const supplyAfter = BigInt(newTotalSupply.toString());
       const supplyBefore = supplyAfter + tokenAmount;
 
+      // Check for pending purchase to map EVM Relayer proxy buyer back to L1 BTC user
+      const pendingPurchase = await prisma.pendingPurchase.findFirst({
+        where: { launchAddr: curveAddress.toLowerCase(), applied: false },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const actualSeller = pendingPurchase ? pendingPurchase.btcAddress : seller.toLowerCase();
+
       await prisma.purchase.create({
         data: {
           launchId: launch.id,
           tradeType: 'SELL',
-          buyer: seller.toLowerCase(),
+          buyer: actualSeller,
           intentId,
           btcAmount: btcAmountSats.toString(),
           tokenAmount: tokenAmountBaseUnits.toString(),
@@ -427,6 +450,13 @@ class MidlLaunchIndexer {
       });
 
       console.log(`[DB] Stored sell for launch: ${launch.name}`);
+
+      if (pendingPurchase) {
+        await prisma.pendingPurchase.update({
+          where: { id: pendingPurchase.id },
+          data: { applied: true },
+        });
+      }
 
       await broadcast('tokens_sold', {
         launchId: launch.id,

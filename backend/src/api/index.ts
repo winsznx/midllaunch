@@ -1314,6 +1314,28 @@ app.get('/api/bot/stats', async (req, res) => {
 });
 
 // Start server
+// POST /api/pending-purchase - Store buyer mapping before tx confirms
+app.post('/api/pending-purchase', async (req, res) => {
+  try {
+    const { btcAddress, launchAddr, btcAmount } = req.body;
+    if (!btcAddress || !launchAddr || !btcAmount) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const pending = await prisma.pendingPurchase.create({
+      data: {
+        btcAddress: btcAddress.toLowerCase(),
+        launchAddr: launchAddr.toLowerCase(),
+        btcAmount: btcAmount.toString(),
+      }
+    });
+    res.json(pending);
+  } catch (error) {
+    console.error('[API] Error saving pending purchase:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`[API] Server running on http://localhost:${PORT}`);
   console.log(`[API] CORS origins: ${CORS_ORIGINS.join(', ')}`);
