@@ -19,16 +19,22 @@ const LIFECYCLE_STEPS = [
 
 function ExplorerLinks({ btcTxId, evmTxHash }: { btcTxId?: string | null; evmTxHash?: string | null }) {
   if (!btcTxId && !evmTxHash) return null;
+
+  // Sometimes intentId is passed as btcTxId but it contains an EVM 0x hash.
+  const isBtcHash = btcTxId && !btcTxId.startsWith('0x') && btcTxId.length === 64;
+  const validBtcTxId = isBtcHash ? btcTxId : null;
+  const validEvmTxHash = evmTxHash || (btcTxId?.startsWith('0x') ? btcTxId : null);
+
   return (
     <div className="flex gap-4 mt-3">
-      {btcTxId && (
-        <a href={`${BTC_EXPLORER}/${btcTxId}`} target="_blank" rel="noopener noreferrer"
+      {validBtcTxId && (
+        <a href={`${BTC_EXPLORER}/${validBtcTxId}`} target="_blank" rel="noopener noreferrer"
           className="text-xs hover:underline" style={{ color: 'var(--text-tertiary)' }}>
           BTC Explorer ↗
         </a>
       )}
-      {evmTxHash && (
-        <a href={`${EVM_EXPLORER}/${evmTxHash}`} target="_blank" rel="noopener noreferrer"
+      {validEvmTxHash && (
+        <a href={`${EVM_EXPLORER}/${validEvmTxHash}`} target="_blank" rel="noopener noreferrer"
           className="text-xs hover:underline" style={{ color: 'var(--text-tertiary)' }}>
           Midl Explorer ↗
         </a>
