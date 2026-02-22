@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, use, useRef } from 'react';
 import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import {
@@ -81,6 +81,8 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
   const publicClient = usePublicClient();
 
   const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
+  const txIntentionsRef = useRef(txIntentions);
+  useEffect(() => { txIntentionsRef.current = txIntentions; }, [txIntentions]);
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
 
@@ -139,7 +141,7 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
     setActiveStep(3);
 
     await publicClient?.sendBTCTransactions({
-      serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+      serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
       btcTransaction: fbt.tx.hex,
     });
     setActiveStep(4);
@@ -292,6 +294,8 @@ export default function NftCollectionPage({
   const publicClient = usePublicClient();
 
   const { addTxIntentionAsync, txIntentions } = useAddTxIntention();
+  const txIntentionsRef = useRef(txIntentions);
+  useEffect(() => { txIntentionsRef.current = txIntentions; }, [txIntentions]);
   const { signIntentionAsync } = useSignIntention();
   const { finalizeBTCTransactionAsync } = useFinalizeBTCTransaction();
   const { waitForTransactionAsync } = useWaitForTransaction();
@@ -472,7 +476,7 @@ export default function NftCollectionPage({
       setMintStep(3);
 
       await publicClient?.sendBTCTransactions({
-        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+        serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
       });
       setMintStep(4);
@@ -537,7 +541,7 @@ export default function NftCollectionPage({
       setBuyStep(3);
 
       await publicClient?.sendBTCTransactions({
-        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+        serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
       });
       setBuyStep(4);
@@ -598,7 +602,7 @@ export default function NftCollectionPage({
       setDelistStep(3);
 
       await publicClient?.sendBTCTransactions({
-        serializedTransactions: txIntentions.map(it => it.signedEvmTransaction as `0x${string}`),
+        serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
         btcTransaction: fbt.tx.hex,
       });
       setDelistStep(4);

@@ -44,9 +44,19 @@ const BONDING_CURVE_ABI = [
   "function creatorFeeRate() view returns (uint256)"
 ];
 
+const NFT_FACTORY_ABI = [
+  "event CollectionCreated(bytes32 indexed intentId, address indexed creator, address indexed collection, string name, string symbol, uint256 maxSupply, uint256 mintPrice)"
+];
+
+const MIDL_NFT_ABI = [
+  "event NFTMinted(bytes32 indexed intentId, address indexed buyer, uint256 tokenId, uint256 pricePaid)",
+  "function maxPerWallet() view returns (uint256)"
+];
+
 // Environment variables
 const RPC_URL = process.env.MIDL_RPC_URL || 'https://rpc.staging.midl.xyz';
 const FACTORY_ADDRESS = process.env.FACTORY_ADDRESS!;
+const NFT_FACTORY_ADDRESS = process.env.NFT_FACTORY_ADDRESS || '';
 const START_BLOCK = parseInt(process.env.START_BLOCK || '0');
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL_MS || '5000');
 
@@ -54,12 +64,19 @@ if (!FACTORY_ADDRESS) {
   throw new Error('FACTORY_ADDRESS not set in .env');
 }
 
+if (!NFT_FACTORY_ADDRESS) {
+  console.warn('[Indexer] NFT_FACTORY_ADDRESS not set — NFT CollectionCreated events will not be indexed');
+}
+
 class MidlLaunchIndexer {
   private provider: ethers.JsonRpcProvider;
   private factoryContract: ethers.Contract;
+  private nftFactoryContract: ethers.Contract | null = null;
   private lastProcessedBlock: bigint;
   private knownCurveAddresses: Set<string> = new Set();
+  private knownCollectionAddresses: Set<string> = new Set();
   private readonly curveInterface = new ethers.Interface(BONDING_CURVE_ABI);
+  private readonly nftInterface = new ethers.Interface(MIDL_NFT_ABI);
   private consecutiveErrors = 0;
   private maxConsecutiveErrors = 10;
   private isCircuitBreakerOpen = false;
@@ -75,6 +92,14 @@ class MidlLaunchIndexer {
       LAUNCH_FACTORY_ABI,
       this.provider
     );
+
+    if (NFT_FACTORY_ADDRESS) {
+      this.nftFactoryContract = new ethers.Contract(
+        NFT_FACTORY_ADDRESS,
+        NFT_FACTORY_ABI,
+        this.provider
+      );
+    }
 
     this.lastProcessedBlock = BigInt(START_BLOCK);
   }
@@ -144,6 +169,11 @@ class MidlLaunchIndexer {
     const existing = await prisma.launch.findMany({ select: { curveAddress: true } });
     existing.forEach(l => this.knownCurveAddresses.add(l.curveAddress));
     console.log(`[Indexer] Loaded ${this.knownCurveAddresses.size} known curve addresses`);
+
+    // Load all known NFT collection addresses into memory
+    const existingCollections = await prisma.nftLaunch.findMany({ select: { contractAddress: true } });
+    existingCollections.forEach(c => this.knownCollectionAddresses.add(c.contractAddress));
+    console.log(`[Indexer] Loaded ${this.knownCollectionAddresses.size} known NFT collections`);
 
     // Get current block
     const currentBlock = await this.provider.getBlockNumber();
@@ -419,6 +449,140 @@ class MidlLaunchIndexer {
     }
   }
 
+  async processCollectionCreatedEvent(log: ethers.Log) {
+    try {
+      const decoded = this.nftFactoryContract!.interface.parseLog({
+        topics: log.topics as string[],
+        data: log.data,
+      });
+      if (!decoded) return;
+
+      const { intentId, creator, collection, name, symbol, maxSupply, mintPrice } = decoded.args;
+      const contractAddress = (collection as string).toLowerCase();
+
+      console.log(`[CollectionCreated] Collection: ${contractAddress}, Name: ${name}`);
+
+      const block = await this.provider.getBlock(log.blockNumber);
+      if (!block) return;
+
+      // Read maxPerWallet directly from the deployed collection contract
+      const collectionContract = new ethers.Contract(contractAddress, MIDL_NFT_ABI, this.provider);
+      const maxPerWallet = Number(await collectionContract.maxPerWallet());
+
+      // Check for pending IPFS metadata (stored by frontend before tx confirmed)
+      const pendingMeta = await prisma.pendingMetadata.findFirst({
+        where: { name, symbol, applied: false },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      await prisma.nftLaunch.upsert({
+        where: { contractAddress },
+        update: {
+          createdAt: new Date(block.timestamp * 1000),
+        },
+        create: {
+          contractAddress,
+          name,
+          symbol,
+          totalSupply: Number(maxSupply),
+          mintPrice: BigInt(mintPrice.toString()),
+          maxPerWallet,
+          creatorAddress: (creator as string).toLowerCase(),
+          ...(pendingMeta ? {
+            metadataCID: pendingMeta.metadataCID,
+            ...(pendingMeta.imageCID ? { imageUrl: `https://gateway.pinata.cloud/ipfs/${pendingMeta.imageCID}` } : {}),
+            ...(pendingMeta.description ? { description: pendingMeta.description } : {}),
+            ...(pendingMeta.twitterUrl ? { twitterUrl: pendingMeta.twitterUrl } : {}),
+            ...(pendingMeta.telegramUrl ? { telegramUrl: pendingMeta.telegramUrl } : {}),
+            ...(pendingMeta.websiteUrl ? { websiteUrl: pendingMeta.websiteUrl } : {}),
+          } : {}),
+        },
+      });
+
+      if (pendingMeta) {
+        await prisma.pendingMetadata.update({
+          where: { id: pendingMeta.id },
+          data: { applied: true },
+        });
+        console.log(`[DB] Linked IPFS metadata for NFT: ${name} (${symbol})`);
+      }
+
+      this.knownCollectionAddresses.add(contractAddress);
+      console.log(`[DB] Stored NFT collection: ${name} (${symbol}) at ${contractAddress}`);
+
+      await broadcast('nft_collection_created', {
+        contractAddress,
+        creator: (creator as string).toLowerCase(),
+        name,
+        symbol,
+        maxSupply: maxSupply.toString(),
+        mintPrice: mintPrice.toString(),
+        timestamp: new Date(block.timestamp * 1000).toISOString(),
+      });
+    } catch (error) {
+      console.error('[CollectionCreated] Error processing event:', error);
+    }
+  }
+
+  async processNFTMintedEvent(log: ethers.Log) {
+    try {
+      const collectionAddress = log.address.toLowerCase();
+      const nftContract = new ethers.Contract(collectionAddress, MIDL_NFT_ABI, this.provider);
+      const decoded = nftContract.interface.parseLog({
+        topics: log.topics as string[],
+        data: log.data,
+      });
+      if (!decoded) return;
+
+      const { intentId, buyer, tokenId, pricePaid } = decoded.args;
+
+      console.log(`[NFTMinted] Collection: ${collectionAddress}, Token: ${tokenId}, Buyer: ${buyer}`);
+
+      const block = await this.provider.getBlock(log.blockNumber);
+      if (!block) return;
+
+      const nftLaunch = await prisma.nftLaunch.findUnique({
+        where: { contractAddress: collectionAddress },
+      });
+
+      if (!nftLaunch) {
+        console.error(`[NFTMinted] NftLaunch not found for collection: ${collectionAddress}`);
+        return;
+      }
+
+      await prisma.nftMint.create({
+        data: {
+          launchId: nftLaunch.id,
+          tokenId: Number(tokenId),
+          buyerAddress: (buyer as string).toLowerCase(),
+          pricePaidSats: BigInt(pricePaid.toString()),
+          txHash: log.transactionHash || '',
+          createdAt: new Date(block.timestamp * 1000),
+        },
+      });
+
+      await prisma.nftLaunch.update({
+        where: { id: nftLaunch.id },
+        data: { totalMinted: { increment: 1 } },
+      });
+
+      console.log(`[DB] Stored NFT mint: ${nftLaunch.name} #${tokenId}`);
+
+      await broadcast('nft_minted', {
+        contractAddress: collectionAddress,
+        launchId: nftLaunch.id,
+        name: nftLaunch.name,
+        symbol: nftLaunch.symbol,
+        buyer: (buyer as string).toLowerCase(),
+        tokenId: tokenId.toString(),
+        pricePaid: pricePaid.toString(),
+        timestamp: new Date(block.timestamp * 1000).toISOString(),
+      });
+    } catch (error) {
+      console.error('[NFTMinted] Error processing event:', error);
+    }
+  }
+
   async indexBlock(blockNumber: number) {
     if (this.checkCircuitBreaker()) {
       console.log('[Indexer] Circuit breaker OPEN - skipping block indexing');
@@ -469,6 +633,37 @@ class MidlLaunchIndexer {
         }
         for (const log of sellLogs) {
           await this.processTokensSoldEvent(log, log.address.toLowerCase());
+        }
+      }
+
+      // NFT CollectionCreated events from factory
+      if (this.nftFactoryContract) {
+        const collectionLogs = await this.retryWithBackoff(() =>
+          this.nftFactoryContract!.queryFilter(
+            this.nftFactoryContract!.filters.CollectionCreated(),
+            blockNumber,
+            blockNumber
+          )
+        );
+        for (const log of collectionLogs) {
+          await this.processCollectionCreatedEvent(log as ethers.Log);
+        }
+      }
+
+      // NFT mint events across all known collections
+      const collectionAddresses = Array.from(this.knownCollectionAddresses);
+      if (collectionAddresses.length > 0) {
+        const mintedTopic = this.nftInterface.getEvent('NFTMinted')!.topicHash;
+        const mintLogs = await this.retryWithBackoff(() =>
+          this.provider.getLogs({
+            address: collectionAddresses,
+            topics: [mintedTopic],
+            fromBlock: blockNumber,
+            toBlock: blockNumber,
+          })
+        );
+        for (const log of mintLogs) {
+          await this.processNFTMintedEvent(log);
         }
       }
 
