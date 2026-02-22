@@ -20,6 +20,7 @@ import {
 import { TxProgress, type TxStep } from '@/components/ui/TxProgress';
 import { Spinner } from '@/components/ui/Spinner';
 import type { NftLaunchSummary } from '@/types';
+import { ipfsUriToHttp } from '@/lib/ipfs/upload';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -216,7 +217,7 @@ function ListModal({ collection, tokenId, isOpen, onClose }: ListModalProps) {
               List NFT #{tokenId}
             </h3>
             <button onClick={onClose} style={{ color: 'var(--text-tertiary)' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           </div>
 
@@ -384,13 +385,13 @@ export default function NftCollectionPage() {
 
       const listingCalls = NFT_MARKETPLACE_ADDRESS
         ? Array.from({ length: cap }, (_, i) =>
-            publicClient.readContract({
-              address: NFT_MARKETPLACE_ADDRESS,
-              abi: NFT_MARKETPLACE_ABI,
-              functionName: 'getListing',
-              args: [address as `0x${string}`, BigInt(i)],
-            }).catch(() => null)
-          )
+          publicClient.readContract({
+            address: NFT_MARKETPLACE_ADDRESS,
+            abi: NFT_MARKETPLACE_ABI,
+            functionName: 'getListing',
+            args: [address as `0x${string}`, BigInt(i)],
+          }).catch(() => null)
+        )
         : Array.from({ length: cap }, () => Promise.resolve(null));
 
       const [owners, listings] = await Promise.all([
@@ -626,7 +627,7 @@ export default function NftCollectionPage() {
 
   const name = collection?.name ?? 'NFT Collection';
   const symbol = collection?.symbol ?? '';
-  const imageUrl = collection?.imageUrl;
+  const imageUrl = collection?.imageUrl ? (collection.imageUrl.startsWith('http') ? collection.imageUrl : ipfsUriToHttp(collection.imageUrl)) : undefined;
   const description = collection?.description;
 
   if (apiLoading) {

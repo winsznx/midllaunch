@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ipfsUriToHttp } from '@/lib/ipfs/upload';
 
 interface NftLaunch {
   contractAddress: string;
@@ -62,7 +63,7 @@ export function NftCard({ launch }: { launch: NftLaunch }) {
       >
         {launch.imageUrl && (
           <Image
-            src={launch.imageUrl}
+            src={launch.imageUrl.startsWith('http') ? launch.imageUrl : ipfsUriToHttp(launch.imageUrl)}
             alt={launch.name}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
