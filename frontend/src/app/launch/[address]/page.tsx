@@ -423,17 +423,23 @@ function DetailTabs({
                             {timeSince(row.timestamp)}
                           </td>
                           <td className="py-2.5 text-right">
-                            {row.txHash ? (
-                              <a
-                                href={`https://mempool.staging.midl.xyz/tx/${row.txHash}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:underline"
-                                style={{ color: 'var(--orange-500)' }}
-                              >
-                                ↗
-                              </a>
-                            ) : (
+                            {row.txHash ? (() => {
+                              const isBtcHash = !row.txHash.startsWith('0x') && row.txHash.length === 64;
+                              const explorerUrl = isBtcHash
+                                ? `https://mempool.staging.midl.xyz/tx/${row.txHash}`
+                                : `https://blockscout.staging.midl.xyz/tx/${row.txHash}`;
+                              return (
+                                <a
+                                  href={explorerUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="hover:underline"
+                                  style={{ color: 'var(--orange-500)' }}
+                                >
+                                  ↗
+                                </a>
+                              );
+                            })() : (
                               <span style={{ color: 'var(--text-muted)' }}>—</span>
                             )}
                           </td>

@@ -19,6 +19,7 @@ interface TxProgressProps {
   error?: string | null;
   onClose?: () => void;
   btcTxId?: string;
+  evmTxHash?: string;
   successSummary?: string;
   successAction?: {
     label: string;
@@ -85,6 +86,7 @@ export function TxProgress({
   error,
   onClose,
   btcTxId,
+  evmTxHash,
   successSummary,
   successAction,
 }: TxProgressProps) {
@@ -244,6 +246,32 @@ export function TxProgress({
               </div>
               <div className="font-mono text-xs break-all" style={{ color: 'var(--text-secondary)' }}>
                 {btcTxId}
+              </div>
+            </div>
+          )}
+
+          {/* EVM Transaction info */}
+          {evmTxHash && (
+            <div
+              className="rounded-xl px-4 py-3 space-y-1.5"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--bg-border)' }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  Midl Transaction
+                </span>
+                <a
+                  href={`https://blockscout.staging.midl.xyz/tx/${evmTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs hover:underline"
+                  style={{ color: 'var(--orange-500)' }}
+                >
+                  Explorer ↗
+                </a>
+              </div>
+              <div className="font-mono text-xs break-all" style={{ color: 'var(--text-secondary)' }}>
+                {evmTxHash.slice(0, 10)}...{evmTxHash.slice(-8)}
               </div>
             </div>
           )}

@@ -4,7 +4,7 @@ import { useAccounts, useWaitForTransaction } from '@midl/react';
 import { AddressPurpose } from '@midl/core';
 import { useAddTxIntention, useSignIntention, useFinalizeBTCTransaction } from '@midl/executor-react';
 import { usePublicClient, useReadContract } from 'wagmi';
-import { encodeFunctionData, erc20Abi } from 'viem';
+import { encodeFunctionData, erc20Abi, keccak256 } from 'viem';
 import { BONDING_CURVE_ABI } from '@/lib/contracts/config';
 import { formatTokenAmount, formatBTC } from '@/lib/wallet';
 import type { Launch } from '@/types';
@@ -71,6 +71,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
   const [sellError, setSellError] = useState<string | null>(null);
   const [activeStep, setActiveStep] = useState(0);
   const [btcTxId, setBtcTxId] = useState<string | undefined>();
+  const [evmTxHash, setEvmTxHash] = useState<string | undefined>();
   const [showProgress, setShowProgress] = useState(false);
   const [successSummary, setSuccessSummary] = useState<string | undefined>();
 
@@ -143,6 +144,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
     setSellError(null);
     setActiveStep(0);
     setBtcTxId(undefined);
+    setEvmTxHash(undefined);
     setSuccessSummary(undefined);
     setShowProgress(true);
 
@@ -182,6 +184,9 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
 
       await signIntentionAsync({ txId: fbtResult.tx.id, intention });
       setActiveStep(3);
+
+      const signedTx = txIntentionsRef.current[0].signedEvmTransaction as `0x${string}`;
+      setEvmTxHash(keccak256(signedTx));
 
       await publicClient?.sendBTCTransactions({
         serializedTransactions: txIntentionsRef.current.map(it => it.signedEvmTransaction as `0x${string}`),
@@ -225,6 +230,7 @@ export function SellPanel({ launch, onSuccess }: SellPanelProps) {
         steps={sellSteps}
         error={sellError ?? undefined}
         btcTxId={btcTxId}
+        evmTxHash={evmTxHash}
         successSummary={successSummary}
         onClose={() => { setShowProgress(false); setSellError(null); }}
       />
